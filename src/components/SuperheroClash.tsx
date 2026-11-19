@@ -188,10 +188,10 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
           <div className="gc-impact"><i/><b>{clashBeat === 'impact' ? 'DIRECT HIT' : 'CLASH'}</b><i/></div>
         </>}
         <div className={`gc-fighter blue ${phase === 'clash' ? `blue-attack pose-${poseForPower(bluePower)} ${clashBeat === 'impact' && impactSide === 'blue' ? 'blue-hurt' : ''} ${clashBeat === 'impact' && impactSide === 'blue' && blueHealth - impactDamage <= 0 ? 'blue-fall' : ''}` : phase === 'result' ? `blue-${blueReaction}` : phase === 'finished' && winner === 'red' ? 'blue-fall' : ''}`}>
-          <img className="gc-base-pose" src={fighterImage('blue', bluePower, blueReaction, false)} alt={`${blueDisplayName} fighter action`} />
+          <img className="gc-base-pose" src={fighterImage('blue', bluePower, blueReaction, phase === 'clash')} alt={`${blueDisplayName} fighter action`} />
         </div>
         <div className={`gc-fighter red ${phase === 'clash' ? `red-attack pose-${poseForPower(redPower)} ${clashBeat === 'impact' && impactSide === 'red' ? 'red-hurt' : ''} ${clashBeat === 'impact' && impactSide === 'red' && redHealth - impactDamage <= 0 ? 'red-fall' : ''}` : phase === 'result' ? `red-${redReaction}` : phase === 'finished' && winner === 'blue' ? 'red-fall' : ''}`}>
-          <img className="gc-base-pose" src={fighterImage('red', redPower, redReaction, false)} alt={`${redDisplayName} fighter action`} />
+          <img className="gc-base-pose" src={fighterImage('red', redPower, redReaction, phase === 'clash')} alt={`${redDisplayName} fighter action`} />
         </div>
         {phase === 'clash' && bluePower && redPower && dominantSide && impactSide && <LivePowerCanvas
           bluePower={bluePower} redPower={redPower} winningSide={dominantSide} impactSide={impactSide} beat={clashBeat}
@@ -368,6 +368,124 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()
       ctx.restore()
     }
+
+    const drawAttack = (x:number,y:number,dir:number,power:Power,t:number,scale=1) => {
+      const r=Math.max(12,width*.018)*scale
+      ctx.save()
+      ctx.translate(x,y);ctx.rotate(dir<0?Math.PI:0)
+      ctx.globalCompositeOperation='lighter'
+      ctx.shadowColor=power.color;ctx.shadowBlur=24*scale
+      if(power.name==='TIDAL DRAGON'){
+        // Stylized water-dragon head with horns, jaw, whiskers and flowing mane.
+        ctx.fillStyle='rgba(215,250,255,.9)';ctx.beginPath();ctx.moveTo(-r*1.6,-r*.45);ctx.quadraticCurveTo(-r*.2,-r*1.2,r*1.75,-r*.18);ctx.lineTo(r*2.1,0);ctx.lineTo(r*1.25,r*.34);ctx.quadraticCurveTo(0,r*1.15,-r*1.6,r*.45);ctx.closePath();ctx.fill()
+        ctx.fillStyle=rgba(power.color,.95);ctx.beginPath();ctx.moveTo(-r*.8,-r*.45);ctx.lineTo(-r*1.45,-r*1.35);ctx.lineTo(-r*.1,-r*.65);ctx.lineTo(r*.15,-r*1.45);ctx.lineTo(r*.65,-r*.42);ctx.fill()
+        ctx.fillStyle='#164b72';ctx.beginPath();ctx.arc(r*.95,-r*.2,r*.09,0,Math.PI*2);ctx.fill()
+        ctx.strokeStyle='rgba(235,255,255,.9)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-r*.7,r*.3);ctx.quadraticCurveTo(-r*1.6,r*.85,-r*2,r*.35);ctx.moveTo(-r*.5,-r*.2);ctx.quadraticCurveTo(-r*1.5,-r*.9,-r*1.9,-r*.45);ctx.stroke()
+      } else if(power.name==='PHOENIX ROAR'){
+        for(let k=0;k<5;k++){const yy=(k-2)*r*.34;ctx.fillStyle=rgba(k%2?'#ff7a26':'#ffe8a0',.82);ctx.beginPath();ctx.moveTo(-r*1.2,yy);ctx.quadraticCurveTo(-r*.2,yy-r*(1.2+k*.08),r*1.1,yy-r*.15);ctx.quadraticCurveTo(r*.3,yy+r*.65,-r*1.2,yy);ctx.fill()}
+        ctx.fillStyle='#fff5d4';ctx.beginPath();ctx.ellipse(r*.45,0,r*.75,r*.23,0,0,Math.PI*2);ctx.fill()
+      } else if(power.name==='FROST NOVA'){
+        for(let k=0;k<14;k++){const a=k*Math.PI/7+t*.4;ctx.save();ctx.rotate(a);ctx.fillStyle=k%2?'rgba(130,226,255,.8)':'rgba(255,255,255,.95)';ctx.beginPath();ctx.moveTo(r*.35,-r*.12);ctx.lineTo(r*2.1,0);ctx.lineTo(r*.35,r*.12);ctx.closePath();ctx.fill();ctx.restore()}
+        ctx.strokeStyle='rgba(225,252,255,.9)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r*1.1,t,t+Math.PI*1.8);ctx.stroke()
+      } else if(power.name==='OCEAN SPIRAL'){
+        for(let k=0;k<4;k++){ctx.strokeStyle=rgba(k%2?'#efffff':power.color,.8);ctx.lineWidth=r*.22;ctx.beginPath();ctx.arc(0,0,r*(.45+k*.32),t+k*.8,t+k*.8+Math.PI*1.55);ctx.stroke()}
+        ctx.fillStyle='rgba(235,255,255,.85)';ctx.beginPath();ctx.arc(r*.25,0,r*.22,0,Math.PI*2);ctx.fill()
+      } else if(power.type==='FIRE'){
+        // A pointed, layered flame mass with a turbulent tail, not a glowing line.
+        for(let k=0;k<7;k++){
+          const wobble=Math.sin(t*15+k*1.7)*r*.22
+          const len=r*(1.3+k*.22)
+          ctx.fillStyle=rgba(k%3===0?'#fff1bb':k%3===1?power.color:'#ff3b16',.72-k*.055)
+          ctx.beginPath();ctx.moveTo(-r*1.3,wobble)
+          ctx.bezierCurveTo(-len*.45,-r*(.7+k*.12),len*.15,-r*(.55+k*.1),len,0)
+          ctx.bezierCurveTo(len*.15,r*(.55+k*.1),-len*.45,r*(.7+k*.12),-r*1.3,wobble);ctx.fill()
+        }
+        ctx.fillStyle='rgba(255,255,230,.96)';ctx.beginPath();ctx.ellipse(r*.25,0,r*.72,r*.24,0,0,Math.PI*2);ctx.fill()
+      } else if(power.type==='LIGHTNING'){
+        for(let branch=0;branch<5;branch++){
+          const off=(branch-2)*r*.32
+          ctx.strokeStyle=branch%2?'#bceeff':'#ffffff';ctx.lineWidth=branch===2?4:2.2
+          ctx.beginPath();ctx.moveTo(-r*1.6,off*.3)
+          ctx.lineTo(-r*.75,off-r*.3);ctx.lineTo(-r*.2,off+r*.22);ctx.lineTo(r*.45,off-r*.4);ctx.lineTo(r*1.8,off*.15)
+          ctx.stroke()
+        }
+        ctx.fillStyle='rgba(190,245,255,.95)';ctx.beginPath();ctx.arc(0,0,r*.3,0,Math.PI*2);ctx.fill()
+      } else if(power.type==='ICE'){
+        for(let k=0;k<4;k++){
+          const off=(k-1.5)*r*.45
+          ctx.fillStyle=k%2?'rgba(140,231,255,.8)':'rgba(255,255,255,.95)'
+          ctx.beginPath();ctx.moveTo(-r*.9,off);ctx.lineTo(r*(1.5+k*.16),off-r*.18);ctx.lineTo(r*.35,off+r*.2);ctx.closePath();ctx.fill()
+        }
+        ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-r,0);ctx.lineTo(r*1.9,0);ctx.stroke()
+      } else if(power.type==='WATER'){
+        for(let k=0;k<5;k++){
+          const off=(k-2)*r*.25
+          ctx.strokeStyle=rgba(k%2?'#e4fbff':power.color,.75);ctx.lineWidth=r*.24
+          ctx.beginPath();ctx.moveTo(-r*2,off+Math.sin(t*5+k)*r*.2)
+          ctx.bezierCurveTo(-r,off-r*.9,r*.2,off+r*.9,r*2.2,off+Math.sin(t*4+k)*r*.2);ctx.stroke()
+        }
+        ctx.fillStyle='rgba(235,252,255,.8)';ctx.beginPath();ctx.ellipse(r*.25,0,r*.7,r*.35,0,0,Math.PI*2);ctx.fill()
+      } else if(power.type==='SHADOW'){
+        ctx.rotate(t*2)
+        const g=ctx.createRadialGradient(0,0,2,0,0,r*2.1);g.addColorStop(0,'#080512');g.addColorStop(.35,rgba(power.color,.95));g.addColorStop(1,rgba(power.color,0))
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r*2,0,Math.PI*2);ctx.fill()
+        for(let k=0;k<3;k++){ctx.strokeStyle=rgba('#e3d4ff',.9-k*.2);ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r*(.55+k*.38),t+k,t+k+Math.PI*1.35);ctx.stroke()}
+      } else if(power.type==='SOLAR'){
+        const g=ctx.createRadialGradient(0,0,1,0,0,r*2.2);g.addColorStop(0,'#fff');g.addColorStop(.25,'#fff2ae');g.addColorStop(.55,power.color);g.addColorStop(1,rgba(power.color,0))
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r*2.2,0,Math.PI*2);ctx.fill()
+        for(let k=0;k<18;k++){const a=k*Math.PI/9+t*.7;ctx.strokeStyle='rgba(255,246,190,.85)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(Math.cos(a)*r*.9,Math.sin(a)*r*.9);ctx.lineTo(Math.cos(a)*r*(1.5+(k%3)*.3),Math.sin(a)*r*(1.5+(k%3)*.3));ctx.stroke()}
+      } else if(power.type==='SHIELD'){
+        ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=5;ctx.beginPath()
+        ctx.moveTo(r*1.5,0);ctx.lineTo(r*.65,-r*.9);ctx.lineTo(-r*.7,-r*.8);ctx.lineTo(-r*1.35,0);ctx.lineTo(-r*.65,r*.85);ctx.lineTo(r*.65,r*.85);ctx.closePath();ctx.stroke()
+        ctx.fillStyle=rgba(power.color,.3);ctx.fill()
+        ctx.strokeStyle=rgba('#ffffff',.8);ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,r*1.7,t,t+Math.PI*1.3);ctx.stroke()
+      } else if(power.type==='HEAL'){
+        ctx.strokeStyle='rgba(240,255,248,.98)';ctx.lineWidth=6;ctx.lineCap='round'
+        ctx.beginPath();ctx.moveTo(-r*.55,0);ctx.lineTo(r*.55,0);ctx.moveTo(0,-r*.55);ctx.lineTo(0,r*.55);ctx.stroke()
+        ctx.strokeStyle=rgba(power.color,.9);ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r*1.45,t,t+Math.PI*1.65);ctx.stroke()
+        for(let k=0;k<6;k++){const a=k*Math.PI/3+t;ctx.fillStyle=rgba('#b8ffda',.85);ctx.beginPath();ctx.arc(Math.cos(a)*r*1.9,Math.sin(a)*r*1.9,3,0,Math.PI*2);ctx.fill()}
+      } else if(power.type==='WIND'){
+        for(let k=0;k<4;k++){ctx.strokeStyle=rgba('#eaffff',.8-k*.12);ctx.lineWidth=3+k;ctx.beginPath();ctx.moveTo(-r*2,-r*.5+k*r*.32);ctx.bezierCurveTo(-r*.2,-r*1.2+k*r*.32,r*.3,r*1.2+k*r*.32,r*2.2,-r*.1+k*r*.32);ctx.stroke()}
+      } else if(power.type==='IMPACT' || power.type==='SPEED'){
+        ctx.fillStyle=rgba(power.color,.35);ctx.beginPath();ctx.ellipse(0,0,r*2.2,r*.9,0,0,Math.PI*2);ctx.fill()
+        for(let k=0;k<9;k++){const yy=(k-4)*r*.24;ctx.strokeStyle=k%2?'#fff':power.color;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(-r*2,yy);ctx.lineTo(r*(1.4+(k%3)*.25),yy*.35);ctx.stroke()}
+        ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(r*.45,0,r*.25,0,Math.PI*2);ctx.fill()
+      } else {
+        const g=ctx.createRadialGradient(-r*.2,-r*.2,1,0,0,r*1.7);g.addColorStop(0,'#fff');g.addColorStop(.2,power.color);g.addColorStop(1,rgba(power.color,0))
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r*1.7,0,Math.PI*2);ctx.fill()
+        ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,r*1.5,r*.6,t,0,Math.PI*2);ctx.stroke()
+      }
+      ctx.restore()
+    }
+    const drawPowerWake = (x1:number,y1:number,x2:number,y2:number,power:Power,t:number) => {
+      const dx=x2-x1,dy=y2-y1,dir=dx>=0?1:-1
+      if(power.type==='FIRE'){
+        for(let k=0;k<10;k++){
+          const q=(k+1)/11, x=x1+dx*q, y=y1+dy*q+Math.sin(t*12+k)*8
+          const rr=(1-q)*width*.013+3
+          ctx.save();ctx.globalAlpha=.2+q*.55;ctx.fillStyle=k%2?'#ff6b28':'#ffd17b';ctx.shadowColor=power.color;ctx.shadowBlur=18
+          ctx.beginPath();ctx.ellipse(x,y,rr*1.8,rr*.7,Math.atan2(dy,dx),0,Math.PI*2);ctx.fill();ctx.restore()
+        }
+      } else if(power.type==='LIGHTNING'){
+        ctx.save();ctx.strokeStyle=rgba('#b9edff',.9);ctx.lineWidth=2.5;ctx.shadowColor=power.color;ctx.shadowBlur=14
+        for(let k=0;k<4;k++){ctx.beginPath();ctx.moveTo(x1,y1+(k-1.5)*5);let x=x1,y=y1+(k-1.5)*5
+          for(let n=1;n<=8;n++){x=x1+dx*n/8;y=y1+dy*n/8+Math.sin(t*17+n*2+k)*11;ctx.lineTo(x,y)}ctx.stroke()}
+        ctx.restore()
+      } else if(power.type==='WATER'){
+        ctx.save();ctx.lineCap='round'
+        for(let k=0;k<4;k++){ctx.strokeStyle=rgba(k%2?'#efffff':power.color,.55);ctx.lineWidth=4+k*2;ctx.beginPath();ctx.moveTo(x1,y1+(k-1.5)*7);ctx.bezierCurveTo(x1+dx*.3,y1+dy*.3+Math.sin(t*5+k)*28,x1+dx*.7,y1+dy*.7+Math.cos(t*5+k)*28,x2,y2+(k-1.5)*5);ctx.stroke()}
+        ctx.restore()
+      } else if(power.type==='ICE'){
+        ctx.save();ctx.strokeStyle=rgba('#dffaff',.8);ctx.lineWidth=3;ctx.setLineDash([8,7]);ctx.lineDashOffset=-t*45;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore()
+      } else if(power.type==='SHADOW'){
+        ctx.save();ctx.strokeStyle=rgba(power.color,.45);ctx.lineWidth=width*.035;ctx.shadowColor=power.color;ctx.shadowBlur=24;ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo((x1+x2)/2,(y1+y2)/2+Math.sin(t*3)*30,x2,y2);ctx.stroke();ctx.restore()
+      } else if(power.type==='SOLAR'){
+        ctx.save();const grad=ctx.createLinearGradient(x1,y1,x2,y2);grad.addColorStop(0,rgba(power.color,0));grad.addColorStop(.7,rgba(power.color,.5));grad.addColorStop(1,'rgba(255,255,230,.9)');ctx.strokeStyle=grad;ctx.lineWidth=width*.026;ctx.shadowColor=power.color;ctx.shadowBlur=30;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore()
+      } else {
+        ctx.save();const grad=ctx.createLinearGradient(x1,y1,x2,y2);grad.addColorStop(0,rgba(power.color,0));grad.addColorStop(.45,rgba(power.color,.45));grad.addColorStop(1,rgba('#ffffff',.8));ctx.strokeStyle=grad;ctx.lineWidth=power.type==='WIND'?6:Math.max(5,width*.008);ctx.lineCap='round';ctx.shadowColor=power.color;ctx.shadowBlur=22;ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo((x1+x2)/2,(y1+y2)/2-8,x2,y2);ctx.stroke();ctx.restore()
+      }
+    }
+
     const drawImpact = (x:number,y:number,power:Power,t:number) => {
       const progress=Math.min(1,t)
       const radius=12+progress*width*.17
@@ -384,9 +502,9 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       const elapsed=(now-start)/1000
       const current=valuesRef.current
       ctx.clearRect(0,0,width,height)
-      const midX=width*.5, midY=height*.39
-      const blueStart={x:width*.315,y:height*.36}
-      const redStart={x:width*.685,y:height*.36}
+      const midX=width*.5, midY=height*.47
+      const blueStart={x:width*.285,y:height*.43}
+      const redStart={x:width*.715,y:height*.43}
       const target=impactSide==='blue'?{x:width*.205,y:height*.48}:{x:width*.795,y:height*.48}
       const source=winningSide==='blue'?blueStart:redStart
       const winnerPower=winningSide==='blue'?bluePower:redPower
@@ -403,8 +521,12 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       // Energy accumulates visibly at both hands before anything is fired.
       if(elapsed<2.45){
         const charge=Math.min(1,elapsed/2.45)
-        drawOrb(blueStart.x,blueStart.y,8+charge*18,bluePower.color,bluePower,elapsed,charge)
-        drawOrb(redStart.x,redStart.y,8+charge*18,redPower.color,redPower,elapsed,charge)
+        const blueDefensive=['SHIELD','HEAL'].includes(bluePower.type)
+        const redDefensive=['SHIELD','HEAL'].includes(redPower.type)
+        if(!blueDefensive) drawOrb(blueStart.x,blueStart.y,8+charge*18,bluePower.color,bluePower,elapsed,charge)
+        if(!redDefensive) drawOrb(redStart.x,redStart.y,8+charge*18,redPower.color,redPower,elapsed,charge)
+        if(blueDefensive){ctx.save();ctx.strokeStyle=rgba(bluePower.color,.85);ctx.lineWidth=3+charge*3;ctx.beginPath();ctx.ellipse(blueStart.x,blueStart.y-35,22+charge*34,45+charge*25,0,0,Math.PI*2);ctx.stroke();ctx.restore()}
+        if(redDefensive){ctx.save();ctx.strokeStyle=rgba(redPower.color,.85);ctx.lineWidth=3+charge*3;ctx.beginPath();ctx.ellipse(redStart.x,redStart.y-35,22+charge*34,45+charge*25,0,0,Math.PI*2);ctx.stroke();ctx.restore()}
         for(let i=0;i<2;i++){
           const origin=i===0?blueStart:redStart
           const power=i===0?bluePower:redPower
@@ -420,10 +542,10 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         const rx=redStart.x+(midX-redStart.x)*e
         const by=blueStart.y+(midY-blueStart.y)*e+Math.sin(p*Math.PI)*-height*.035
         const ry=redStart.y+(midY-redStart.y)*e+Math.sin(p*Math.PI)*-height*.035
-        drawTrail(blueStart.x,blueStart.y,bx,by,bluePower.color,bluePower,1)
-        drawTrail(redStart.x,redStart.y,rx,ry,redPower.color,redPower,1)
-        drawOrb(bx,by,12+Math.sin(now*.012)*3,bluePower.color,bluePower,elapsed)
-        drawOrb(rx,ry,12+Math.sin(now*.012+1)*3,redPower.color,redPower,elapsed)
+        drawPowerWake(blueStart.x,blueStart.y,bx,by,bluePower,elapsed)
+        drawPowerWake(redStart.x,redStart.y,rx,ry,redPower,elapsed)
+        drawAttack(bx,by,1,bluePower,elapsed,1)
+        drawAttack(rx,ry,-1,redPower,elapsed,1)
         if(elapsed>4.25){
           const pulse=1+Math.sin(now*.018)*.14
           ctx.save();ctx.globalAlpha=1-collide*.55;ctx.strokeStyle='#ffffff';ctx.lineWidth=5;ctx.shadowColor=winnerPower.color;ctx.shadowBlur=32
@@ -437,8 +559,8 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         const x=midX+(target.x-midX)*p
         const y=midY+(target.y-midY)*p
         const loserFade=1-breakthrough
-        drawTrail(midX,midY,x,y,winnerPower.color,winnerPower,Math.max(.08,breakthrough))
-        drawOrb(x,y,18+breakthrough*12,winnerPower.color,winnerPower,elapsed)
+        drawPowerWake(midX,midY,x,y,winnerPower,elapsed)
+        drawAttack(x,y,Math.sign(target.x-midX),winnerPower,elapsed,1+breakthrough*.35)
         drawOrb(midX,midY,Math.max(1,26*loserFade),loserPower.color,loserPower,elapsed,loserFade)
       }
 

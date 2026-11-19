@@ -1219,3 +1219,51 @@ body{background:var(--bg);color:var(--text)}
 @media(prefers-reduced-motion:reduce) {
   .gc-live-power-canvas { opacity:.9; }
 }
+
+
+/* ADVANCED FIGHTER PERFORMANCE: keep the user's original hero artwork,
+   but choreograph the attack sprite through each turn-based combat beat. */
+.gc-stage.is-clashing .gc-fighter.blue,
+.gc-stage.is-clashing .gc-fighter.red {
+  animation:none !important;
+  will-change:transform,filter;
+  transform-origin:55% 78%;
+}
+.gc-stage.is-clashing .gc-fighter.red { transform:scaleX(-1); }
+.gc-stage.is-clashing .gc-fighter .gc-base-pose {
+  will-change:transform,filter;
+  transition:filter .18s ease;
+}
+.gc-stage.is-clashing.beat-charge .gc-fighter.blue { animation:hero-blue-charge 1.05s ease-in-out both !important; }
+.gc-stage.is-clashing.beat-charge .gc-fighter.red { animation:hero-red-charge 1.05s ease-in-out both !important; }
+.gc-stage.is-clashing.beat-windup .gc-fighter.blue { animation:hero-blue-windup 1.4s cubic-bezier(.2,.75,.25,1) both !important; }
+.gc-stage.is-clashing.beat-windup .gc-fighter.red { animation:hero-red-windup 1.4s cubic-bezier(.2,.75,.25,1) both !important; }
+.gc-stage.is-clashing.beat-release .gc-fighter.blue { animation:hero-blue-release 1.8s cubic-bezier(.18,.72,.2,1) both !important; }
+.gc-stage.is-clashing.beat-release .gc-fighter.red { animation:hero-red-release 1.8s cubic-bezier(.18,.72,.2,1) both !important; }
+.gc-stage.is-clashing.beat-collision .gc-fighter.blue { animation:hero-blue-brace .9s ease-in-out both !important; }
+.gc-stage.is-clashing.beat-collision .gc-fighter.red { animation:hero-red-brace .9s ease-in-out both !important; }
+.gc-stage.is-clashing.beat-breakthrough.dominant-blue .gc-fighter.blue { animation:hero-blue-finisher .95s cubic-bezier(.16,.8,.22,1) both !important; }
+.gc-stage.is-clashing.beat-breakthrough.dominant-blue .gc-fighter.red { animation:hero-red-brace .95s ease-in both !important; }
+.gc-stage.is-clashing.beat-breakthrough.dominant-red .gc-fighter.red { animation:hero-red-finisher .95s cubic-bezier(.16,.8,.22,1) both !important; }
+.gc-stage.is-clashing.beat-breakthrough.dominant-red .gc-fighter.blue { animation:hero-blue-brace .95s ease-in both !important; }
+.gc-stage.is-clashing.beat-impact .gc-fighter.blue.blue-hurt { animation:hero-blue-hit .65s cubic-bezier(.2,.8,.2,1) both !important; }
+.gc-stage.is-clashing.beat-impact .gc-fighter.red.red-hurt { animation:hero-red-hit .65s cubic-bezier(.2,.8,.2,1) both !important; }
+.gc-stage.is-clashing.beat-recovery .gc-fighter { animation:hero-recover .95s ease-out both !important; }
+@keyframes hero-blue-charge { 0%{transform:translate(0,0) scale(1)} 65%{transform:translate(0,4px) scale(.985)} 100%{transform:translate(0,0) scale(1)} }
+@keyframes hero-red-charge { 0%{transform:scaleX(-1) translate(0,0) scale(1)} 65%{transform:scaleX(-1) translate(0,4px) scale(.985)} 100%{transform:scaleX(-1) translate(0,0) scale(1)} }
+@keyframes hero-blue-windup { 0%{transform:translateX(0) rotate(0)} 45%{transform:translate(-12px,8px) rotate(-3deg) scale(.98)} 100%{transform:translate(-4px,0) rotate(1deg) scale(1.015)} }
+@keyframes hero-red-windup { 0%{transform:scaleX(-1) translateX(0)} 45%{transform:scaleX(-1) translate(-12px,8px) rotate(-3deg) scale(.98)} 100%{transform:scaleX(-1) translate(-4px,0) rotate(1deg) scale(1.015)} }
+@keyframes hero-blue-release { 0%{transform:translateX(-4px) scale(1.015)} 35%{transform:translateX(32px) scale(1.035)} 72%{transform:translateX(60px) scale(1.045)} 100%{transform:translateX(44px) scale(1.02)} }
+@keyframes hero-red-release { 0%{transform:scaleX(-1) translateX(-4px) scale(1.015)} 35%{transform:scaleX(-1) translateX(32px) scale(1.035)} 72%{transform:scaleX(-1) translateX(60px) scale(1.045)} 100%{transform:scaleX(-1) translateX(44px) scale(1.02)} }
+@keyframes hero-blue-brace { 0%{transform:translateX(44px)} 25%{transform:translateX(38px) rotate(-2deg)} 55%{transform:translateX(48px) rotate(2deg)} 100%{transform:translateX(44px)} }
+@keyframes hero-red-brace { 0%{transform:scaleX(-1) translateX(44px)} 25%{transform:scaleX(-1) translateX(38px) rotate(-2deg)} 55%{transform:scaleX(-1) translateX(48px) rotate(2deg)} 100%{transform:scaleX(-1) translateX(44px)} }
+@keyframes hero-blue-finisher { 0%{transform:translateX(44px)} 45%{transform:translateX(100px) scale(1.07)} 100%{transform:translateX(82px) scale(1.04)} }
+@keyframes hero-red-finisher { 0%{transform:scaleX(-1) translateX(44px)} 45%{transform:scaleX(-1) translateX(100px) scale(1.07)} 100%{transform:scaleX(-1) translateX(82px) scale(1.04)} }
+@keyframes hero-blue-hit { 0%{transform:translateX(0)} 18%{transform:translate(-25px,4px) rotate(-8deg)} 48%{transform:translate(-34px,10px) rotate(-13deg)} 100%{transform:translate(-18px,3px) rotate(-5deg)} }
+@keyframes hero-red-hit { 0%{transform:scaleX(-1) translateX(0)} 18%{transform:scaleX(-1) translate(-25px,4px) rotate(-8deg)} 48%{transform:scaleX(-1) translate(-34px,10px) rotate(-13deg)} 100%{transform:scaleX(-1) translate(-18px,3px) rotate(-5deg)} }
+@keyframes hero-recover { from{filter:brightness(1.25)} to{filter:brightness(1)} }
+.gc-live-power-canvas { z-index:4; }
+.gc-stage.is-clashing .gc-fighter { z-index:5; }
+.gc-stage.is-clashing .gc-impact { z-index:8; }
+
+/* Real flame/water/lightning silhouettes are rendered procedurally by canvas. */
