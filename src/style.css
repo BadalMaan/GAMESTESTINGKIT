@@ -1267,3 +1267,14 @@ body{background:var(--bg);color:var(--text)}
 .gc-stage.is-clashing .gc-impact { z-index:8; }
 
 /* Real flame/water/lightning silhouettes are rendered procedurally by canvas. */
+
+
+/* Premium VFX pass: let the animated, high-detail Canvas textures own the combat layer.
+   Remove the old flat CSS breakthrough beam that caused the thin blue-line appearance. */
+.gc-stage.is-clashing .gc-breakthrough,
+.gc-stage.is-clashing .gc-target-burst,
+.gc-stage.is-clashing .gc-hit-spark { display:none !important; animation:none !important; }
+.gc-live-power-canvas { z-index:7 !important; mix-blend-mode:screen; }
+.gc-stage.is-clashing .gc-fighter { z-index:5 !important; }
+.gc-stage.is-clashing .gc-impact { z-index:8 !important; }
+.gc-stage.is-clashing .gc-damage-number { z-index:10 !important; }

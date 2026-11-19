@@ -39,6 +39,16 @@ function shufflePowers(): Power[] {
   return pool.slice(0, 5)
 }
 
+const POWER_EFFECT_TEXTURES: Record<string, string> = {
+  'THUNDER SPEAR': 'lightning', 'INFERNO WAVE': 'fire', 'FROST BREAKER': 'ice',
+  'VOID CRUSH': 'shadow', 'SOLAR BURST': 'solar', 'WIND CUTTER': 'wind',
+  'CRYSTAL GUARD': 'shield', 'METEOR KICK': 'impact', 'PLASMA ORB': 'plasma',
+  'PHANTOM DASH': 'speed', 'TIDAL DRAGON': 'water-dragon', 'OCEAN SPIRAL': 'water-vortex',
+  'PHOENIX ROAR': 'phoenix', 'FROST NOVA': 'frost-nova', 'GUARDIAN AEGIS': 'guardian-aegis',
+  'MEND AURA': 'mend-aura'
+}
+const powerEffectTextureCache: Record<string, HTMLImageElement> = {}
+
 export default function SuperheroClash({ onExit, onWin }: Props) {
   const [blueHero, setBlueHero] = useState(0)
   const [redHero, setRedHero] = useState(0)
@@ -61,6 +71,15 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
   const timersRef = useRef<number[]>([])
   const clearCombatTimers = () => { timersRef.current.forEach(timer => window.clearTimeout(timer)); timersRef.current = [] }
   useEffect(() => () => clearCombatTimers(), [])
+  useEffect(() => {
+    Object.entries(POWER_EFFECT_TEXTURES).forEach(([name, file]) => {
+      if (powerEffectTextureCache[name]) return
+      const image = new Image()
+      image.decoding = 'async'
+      image.src = `/images/power-effects/${file}.png`
+      powerEffectTextureCache[name] = image
+    })
+  }, [])
   const [blueReaction, setBlueReaction] = useState<'hurt' | 'stumble' | 'fall' | 'guard'>('guard')
   const [redReaction, setRedReaction] = useState<'hurt' | 'stumble' | 'fall' | 'guard'>('guard')
 
@@ -265,6 +284,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
     let start = performance.now()
     let last = start
     const particles: LiveParticle[] = []
+    // All 16 transparent VFX textures are preloaded at arena entry and reused by this renderer.
     const resize = () => {
       const rect = stage.getBoundingClientRect()
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -460,12 +480,13 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
     const drawPowerWake = (x1:number,y1:number,x2:number,y2:number,power:Power,t:number) => {
       const dx=x2-x1,dy=y2-y1,dir=dx>=0?1:-1
       if(power.type==='FIRE'){
-        for(let k=0;k<10;k++){
-          const q=(k+1)/11, x=x1+dx*q, y=y1+dy*q+Math.sin(t*12+k)*8
-          const rr=(1-q)*width*.013+3
-          ctx.save();ctx.globalAlpha=.2+q*.55;ctx.fillStyle=k%2?'#ff6b28':'#ffd17b';ctx.shadowColor=power.color;ctx.shadowBlur=18
-          ctx.beginPath();ctx.ellipse(x,y,rr*1.8,rr*.7,Math.atan2(dy,dx),0,Math.PI*2);ctx.fill();ctx.restore()
+        // Ember drift and heat shimmer trail; the detailed flame texture is the projectile body.
+        for(let k=0;k<4;k++){
+          const q=(k+1)/5, x=x1+dx*q, y=y1+dy*q+Math.sin(t*10+k*1.7)*9
+          ctx.save();ctx.globalAlpha=.16+q*.2;ctx.fillStyle='#ff9a4a';ctx.shadowColor='#ff6b28';ctx.shadowBlur=16
+          ctx.beginPath();ctx.ellipse(x,y,5+q*4,2+q*2,Math.atan2(dy,dx),0,Math.PI*2);ctx.fill();ctx.restore()
         }
+        if(Math.random()<.7) addBurst(x2,y2,power.color,2,58)
       } else if(power.type==='LIGHTNING'){
         ctx.save();ctx.strokeStyle=rgba('#b9edff',.9);ctx.lineWidth=2.5;ctx.shadowColor=power.color;ctx.shadowBlur=14
         for(let k=0;k<4;k++){ctx.beginPath();ctx.moveTo(x1,y1+(k-1.5)*5);let x=x1,y=y1+(k-1.5)*5
@@ -482,8 +503,43 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       } else if(power.type==='SOLAR'){
         ctx.save();const grad=ctx.createLinearGradient(x1,y1,x2,y2);grad.addColorStop(0,rgba(power.color,0));grad.addColorStop(.7,rgba(power.color,.5));grad.addColorStop(1,'rgba(255,255,230,.9)');ctx.strokeStyle=grad;ctx.lineWidth=width*.026;ctx.shadowColor=power.color;ctx.shadowBlur=30;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore()
       } else {
-        ctx.save();const grad=ctx.createLinearGradient(x1,y1,x2,y2);grad.addColorStop(0,rgba(power.color,0));grad.addColorStop(.45,rgba(power.color,.45));grad.addColorStop(1,rgba('#ffffff',.8));ctx.strokeStyle=grad;ctx.lineWidth=power.type==='WIND'?6:Math.max(5,width*.008);ctx.lineCap='round';ctx.shadowColor=power.color;ctx.shadowBlur=22;ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo((x1+x2)/2,(y1+y2)/2-8,x2,y2);ctx.stroke();ctx.restore()
+        // The textured VFX carries the silhouette; only fine moving motes remain in its wake.
+        if(Math.random()<.55) addBurst(x2,y2,power.color,2,42)
       }
+    }
+
+    const drawEffectTexture = (x:number,y:number,dir:number,power:Power,t:number,scale=1,alpha=1) => {
+      const image = powerEffectTextureCache[power.name]
+      if (!image || !image.complete || image.naturalWidth === 0) {
+        drawAttack(x,y,dir,power,t,scale)
+        return
+      }
+      // Preserve the artwork's aspect ratio; the canvas applies continuous pulse, rotation,
+      // directional mirroring, additive light and motion blur on every rendered frame.
+      const maxW = Math.min(width * .34, 470) * scale
+      const maxH = Math.min(height * .58, 360) * scale
+      const ratio = image.naturalWidth / image.naturalHeight
+      let w = maxW, h = w / ratio
+      if (h > maxH) { h = maxH; w = h * ratio }
+      const pulse = 1 + Math.sin(t * 8.5) * .035
+      const angle = Math.sin(t * 3.4) * .035
+      ctx.save()
+      ctx.translate(x,y)
+      if (dir < 0) ctx.scale(-1,1)
+      ctx.rotate(angle)
+      ctx.globalAlpha = alpha
+      ctx.globalCompositeOperation = 'screen'
+      ctx.shadowColor = power.color
+      ctx.shadowBlur = 18 + 12 * (0.5 + 0.5 * Math.sin(t * 10))
+      ctx.filter = 'saturate(1.22) brightness(1.12)'
+      ctx.drawImage(image,-w*pulse/2,-h*pulse/2,w*pulse,h*pulse)
+      // A fine white-hot centre flash gives bright powers a luminous core without a flat beam.
+      if (['FIRE','SOLAR','PLASMA','LIGHTNING'].includes(power.type)) {
+        ctx.globalAlpha = alpha * .2
+        ctx.filter = 'blur(8px) brightness(1.8)'
+        ctx.drawImage(image,-w*.47,-h*.47,w*.94,h*.94)
+      }
+      ctx.restore()
     }
 
     const drawImpact = (x:number,y:number,power:Power,t:number) => {
@@ -523,10 +579,16 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         const charge=Math.min(1,elapsed/2.45)
         const blueDefensive=['SHIELD','HEAL'].includes(bluePower.type)
         const redDefensive=['SHIELD','HEAL'].includes(redPower.type)
-        if(!blueDefensive) drawOrb(blueStart.x,blueStart.y,8+charge*18,bluePower.color,bluePower,elapsed,charge)
-        if(!redDefensive) drawOrb(redStart.x,redStart.y,8+charge*18,redPower.color,redPower,elapsed,charge)
-        if(blueDefensive){ctx.save();ctx.strokeStyle=rgba(bluePower.color,.85);ctx.lineWidth=3+charge*3;ctx.beginPath();ctx.ellipse(blueStart.x,blueStart.y-35,22+charge*34,45+charge*25,0,0,Math.PI*2);ctx.stroke();ctx.restore()}
-        if(redDefensive){ctx.save();ctx.strokeStyle=rgba(redPower.color,.85);ctx.lineWidth=3+charge*3;ctx.beginPath();ctx.ellipse(redStart.x,redStart.y-35,22+charge*34,45+charge*25,0,0,Math.PI*2);ctx.stroke();ctx.restore()}
+        if(!blueDefensive) {
+          drawOrb(blueStart.x,blueStart.y,8+charge*18,bluePower.color,bluePower,elapsed,charge*.45)
+          drawEffectTexture(blueStart.x,blueStart.y,1,bluePower,elapsed,.38+charge*.28,charge)
+        }
+        if(!redDefensive) {
+          drawOrb(redStart.x,redStart.y,8+charge*18,redPower.color,redPower,elapsed,charge*.45)
+          drawEffectTexture(redStart.x,redStart.y,-1,redPower,elapsed,.38+charge*.28,charge)
+        }
+        if(blueDefensive) drawEffectTexture(blueStart.x,blueStart.y-34,1,bluePower,elapsed,.46+charge*.25,charge)
+        if(redDefensive) drawEffectTexture(redStart.x,redStart.y-34,-1,redPower,elapsed,.46+charge*.25,charge)
         for(let i=0;i<2;i++){
           const origin=i===0?blueStart:redStart
           const power=i===0?bluePower:redPower
@@ -544,8 +606,8 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         const ry=redStart.y+(midY-redStart.y)*e+Math.sin(p*Math.PI)*-height*.035
         drawPowerWake(blueStart.x,blueStart.y,bx,by,bluePower,elapsed)
         drawPowerWake(redStart.x,redStart.y,rx,ry,redPower,elapsed)
-        drawAttack(bx,by,1,bluePower,elapsed,1)
-        drawAttack(rx,ry,-1,redPower,elapsed,1)
+        drawEffectTexture(bx,by,1,bluePower,elapsed,.9,1)
+        drawEffectTexture(rx,ry,-1,redPower,elapsed,.9,1)
         if(elapsed>4.25){
           const pulse=1+Math.sin(now*.018)*.14
           ctx.save();ctx.globalAlpha=1-collide*.55;ctx.strokeStyle='#ffffff';ctx.lineWidth=5;ctx.shadowColor=winnerPower.color;ctx.shadowBlur=32
@@ -560,11 +622,17 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         const y=midY+(target.y-midY)*p
         const loserFade=1-breakthrough
         drawPowerWake(midX,midY,x,y,winnerPower,elapsed)
-        drawAttack(x,y,Math.sign(target.x-midX),winnerPower,elapsed,1+breakthrough*.35)
-        drawOrb(midX,midY,Math.max(1,26*loserFade),loserPower.color,loserPower,elapsed,loserFade)
+        drawEffectTexture(x,y,Math.sign(target.x-midX),winnerPower,elapsed,1+breakthrough*.18,1)
+        drawEffectTexture(midX,midY,winningSide==='blue'?-1:1,loserPower,elapsed,.46,loserFade*.45)
+        drawOrb(midX,midY,Math.max(1,26*loserFade),loserPower.color,loserPower,elapsed,loserFade*.45)
       }
 
-      if(elapsed>=6.25 && elapsed<7.3) drawImpact(target.x,target.y,winnerPower,impact)
+      if(elapsed>=6.25 && elapsed<7.3) {
+        drawImpact(target.x,target.y,winnerPower,impact)
+        const impactPower: Power = { ...winnerPower, name: 'METEOR KICK', type: 'IMPACT', color: winnerPower.color }
+        drawEffectTexture(target.x,target.y,winningSide==='blue'?1:-1,impactPower,elapsed,1.15,Math.max(0,1-impact*.35))
+        if (elapsed < 6.55 && Math.random() < .85) addBurst(target.x,target.y,winnerPower.color,7,150)
+      }
 
       // Procedural sparks and motes: each particle has its own velocity, drag and lifetime.
       for(let i=particles.length-1;i>=0;i--){
