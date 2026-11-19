@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GLOBAL SUPER HERO — 2D Power Clash Arena</title>
+  <title>Global Super Hero — V6 Power Clash Arena</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -75,7 +75,18 @@
       width: 100%;
       height: 100%;
     }
-  </style>
+  
+    #exitWebsiteDashboard {
+      position: fixed; z-index: 1000; top: 10px; left: 12px;
+      border: 1px solid #b9d7ef; border-radius: 11px; padding: 9px 13px;
+      background: rgba(255,255,255,.96); color: #16466c;
+      font: 900 10px/1.2 Inter, sans-serif; letter-spacing: .12em;
+      box-shadow: 0 5px 18px rgba(28,83,125,.16); cursor: pointer;
+    }
+    #exitWebsiteDashboard:hover { background:#e4f3ff; transform:translateY(-1px); }
+    @media(max-width:700px) { #exitWebsiteDashboard { top:6px; left:6px; padding:7px 9px; } }
+
+</style>
 
 <style id="light-arena-v4">
   :root { color-scheme: light; }
@@ -142,12 +153,12 @@
 </style>
 
 </head>
-<body class="w-screen h-dvh overflow-hidden bg-slate-100 text-slate-900 flex flex-col">
+<body class="w-screen h-dvh overflow-hidden bg-slate-100 text-slate-900 flex flex-col"><button id="exitWebsiteDashboard" type="button" aria-label="Return to website dashboard">← DASHBOARD</button>
 
   <!-- ===================================================================== -->
   <!-- SCREEN 1: COMIC-BOOK POSTER COVER                                     -->
   <!-- ===================================================================== -->
-  <section id="posterScreen" class="relative w-full h-full flex flex-col items-center justify-between p-3 sm:p-5 overflow-hidden bg-gradient-to-br from-sky-200 via-white to-amber-100">
+  <section id="posterScreen" class="hidden relative w-full h-full flex flex-col items-center justify-between p-3 sm:p-5 overflow-hidden bg-gradient-to-br from-sky-200 via-white to-amber-100">
     <div class="absolute inset-0 comic-halftone pointer-events-none"></div>
 
     <!-- Top Poster Badge -->
@@ -196,11 +207,11 @@
   <!-- ===================================================================== -->
   <!-- SCREEN 2: CHAMPION & NAME SELECTION                                   -->
   <!-- ===================================================================== -->
-  <section id="selectScreen" class="hidden w-full h-full flex-col justify-between p-2.5 sm:p-4 overflow-hidden bg-slate-50">
+  <section id="selectScreen" class="w-full h-full flex flex-col justify-between p-2.5 sm:p-4 overflow-hidden bg-slate-50">
     <!-- Top Header Bar -->
     <header class="w-full max-w-6xl mx-auto flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
       <button id="backToPosterBtn" type="button" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition cursor-pointer">
-        &larr; POSTER
+        &larr; DASHBOARD
       </button>
       <div class="text-center">
         <div class="font-display text-xs sm:text-sm font-black tracking-wider text-slate-900 uppercase">
@@ -612,6 +623,15 @@
     const exitArenaBtn = document.getElementById('exitArenaBtn');
     const attackBtn = document.getElementById('attackBtn');
 
+    document.getElementById('exitWebsiteDashboard').addEventListener('click', () => {
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'GPA_EXIT_ARENA' }, window.location.origin);
+      } else {
+        window.location.href = '/';
+      }
+    });
+
+
     const p1NameInput = document.getElementById('p1NameInput');
     const p2NameInput = document.getElementById('p2NameInput');
     const p1SuitPills = document.getElementById('p1SuitPills');
@@ -645,7 +665,7 @@
     const battleCanvas = document.getElementById('battleCanvas');
 
     const game = {
-      screen: 'POSTER', // POSTER | SELECT | ARENA
+      screen: 'SELECT', // Website dashboard poster -> SELECT -> ARENA
       phase: 'PICKING', // PICKING | READY_TO_ATTACK | CHARGING | TRAVEL_TO_CENTER | CENTER_CLASH | SURGE_HIT | DRAW_PULSE | VICTORY
       round: 1,
       winner: 0,
@@ -1775,7 +1795,11 @@
 
     backToPosterBtn.addEventListener('click', () => {
       sfx.playSelect(420);
-      showScreen('POSTER');
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'GPA_EXIT_ARENA' }, window.location.origin);
+      } else {
+        window.location.href = '/';
+      }
     });
 
     p1NameInput.addEventListener('input', syncNamesFromInputs);
