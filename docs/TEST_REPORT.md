@@ -10,3 +10,13 @@ Generated for this source package.
 - Therefore `npm run build`, browser end-to-end tests, SQL migrations against a real Supabase project, SMS delivery and realtime multiplayer have not been verified here.
 
 Run `npm install && npm run build` locally before deployment. Apply migrations and follow the Supabase setup guide before enabling student accounts.
+
+## Artwork-first fighting engine verification (2026-11-19)
+
+- Live React battle component (`SuperheroClash.tsx`) TypeScript/JSX syntax transpilation: passed, zero syntax diagnostics.
+- `combatEngine.ts` strict standalone type-check: passed.
+- Directional AABB exchange checks: 24 checks across all 12 power families (both blue and red attack directions); no expected hitbox misses.
+- Fighter art manifest: 16 required transparent fighter images present (10 supplied poses plus 6 cast tiles).
+- Power art manifest: 16 required transparent effect images present.
+- Number picker: explicit final CSS ensures digits remain visible when buttons are disabled/locked.
+- Full Vite production build and real browser benchmark: not run because React/Vite dependencies are not installed in this execution environment and npm offline install cannot fetch the package registry. A 120 FPS result is therefore not claimed.
