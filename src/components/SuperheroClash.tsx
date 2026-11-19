@@ -10,13 +10,9 @@ type Power = { name: string; type: string; icon: string; strength: number; color
 
 const blueHeroes = [
   { name: 'NOVA', title: 'THE LIGHTNING STRIKER', image: '/images/fighters/blue-idle.png', accent: '#79dcff', bonus: 3, passive: 'ENERGY CONTROL · +3 POWER' },
-  { name: 'VOLT', title: 'THE STORM WARRIOR', image: '/images/fighters/blue-idle.png', accent: '#b6a0ff', bonus: 5, passive: 'BURST SPECIALIST · +5 POWER' },
-  { name: 'FROST', title: 'THE ICE GUARDIAN', image: '/images/fighters/blue-idle.png', accent: '#8ceaff', bonus: 2, passive: 'CONTROL SPECIALIST · +2 POWER' },
 ]
 const redHeroes = [
   { name: 'EMBER', title: 'THE FIRE CHAMPION', image: '/images/fighters/red-idle.png', accent: '#ffb19a', bonus: 4, passive: 'FLAME MASTERY · +4 POWER' },
-  { name: 'HEX', title: 'THE SHADOW LORD', image: '/images/fighters/red-idle.png', accent: '#c49bff', bonus: 5, passive: 'VOID MASTERY · +5 POWER' },
-  { name: 'SOLIS', title: 'THE SOLAR KNIGHT', image: '/images/fighters/red-idle.png', accent: '#ffe18a', bonus: 3, passive: 'RADIANT GUARD · +3 POWER' },
 ]
 const powerPool: Power[] = [
   { name: 'THUNDER SPEAR', type: 'LIGHTNING', icon: 'ϟ', strength: 78, color: '#55c8ff', note: 'A focused bolt that pierces the arena.' },
@@ -43,8 +39,6 @@ function shufflePowers(): Power[] {
 }
 
 export default function SuperheroClash({ onExit, onWin }: Props) {
-  const [blueHero, setBlueHero] = useState(0)
-  const [redHero, setRedHero] = useState(0)
   const [opponentMode, setOpponentMode] = useState<'human' | 'cpu'>('human')
   const [bluePlayerName, setBluePlayerName] = useState('NOVA')
   const [redPlayerName, setRedPlayerName] = useState('EMBER')
@@ -70,7 +64,7 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
   const [blueReaction, setBlueReaction] = useState<'hurt' | 'stumble' | 'fall' | 'guard'>('guard')
   const [redReaction, setRedReaction] = useState<'hurt' | 'stumble' | 'fall' | 'guard'>('guard')
 
-  const blue = blueHeroes[blueHero], red = redHeroes[redHero]
+  const blue = blueHeroes[0], red = redHeroes[0]
   const blueDisplayName = bluePlayerName.trim() || blue.name
   const redDisplayName = redPlayerName.trim() || (opponentMode === 'cpu' ? 'ARENA CPU' : red.name)
   const bluePower = bluePick === null ? null : bluePowers[bluePick]
@@ -179,9 +173,9 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
     {phase === 'select' && <section className="gc-select">
       <div className="gc-kicker">THE ARENA IS READY</div><h1>CHOOSE YOUR CHAMPIONS</h1><p>Two heroes enter. Every round brings five new powers. Choose wisely.</p>
       <div className="gc-select-grid">
-        <article className="gc-hero-card blue"><div className="gc-player-label">PLAYER 1</div><img src={blue.image} alt="Blue hero"/><h2>{blue.name}</h2><span>{blue.title} · {blue.passive}</span><label className="gc-name-field">PLAYER 1 NAME<input maxLength={18} value={bluePlayerName} onChange={e => setBluePlayerName(e.target.value)} placeholder="Enter player 1 name"/></label><div className="gc-hero-switch">{blueHeroes.map((h, i) => <button key={h.name} className={blueHero === i ? 'active' : ''} onClick={() => {setBlueHero(i);setBluePlayerName(h.name)}}>{h.name}</button>)}</div></article>
+        <article className="gc-hero-card blue"><div className="gc-player-label">PLAYER 1</div><img src={blue.image} alt="Blue hero"/><h2>{blue.name}</h2><span>{blue.title} · {blue.passive}</span><label className="gc-name-field">PLAYER 1 NAME<input maxLength={18} value={bluePlayerName} onChange={e => setBluePlayerName(e.target.value)} placeholder="Enter player 1 name"/></label></article>
         <div className="gc-vs">VS</div>
-        <article className="gc-hero-card red"><div className="gc-player-label">PLAYER 2</div><img src={red.image} alt="Red hero"/><h2>{red.name}</h2><span>{red.title} · {red.passive}</span><label className="gc-name-field">PLAYER 2 NAME<input maxLength={18} value={redPlayerName} onChange={e => setRedPlayerName(e.target.value)} placeholder="Enter player 2 name"/></label><div className="gc-hero-switch">{redHeroes.map((h, i) => <button key={h.name} className={redHero === i ? 'active' : ''} onClick={() => {setRedHero(i);setRedPlayerName(h.name)}}>{h.name}</button>)}</div><div className="gc-opponent-mode"><button className={opponentMode === 'human' ? 'active' : ''} onClick={() => setOpponentMode('human')}>2 PLAYERS</button><button className={opponentMode === 'cpu' ? 'active' : ''} onClick={() => setOpponentMode('cpu')}>VS CPU</button></div></article>
+        <article className="gc-hero-card red"><div className="gc-player-label">PLAYER 2</div><img src={red.image} alt="Red hero"/><h2>{red.name}</h2><span>{red.title} · {red.passive}</span><label className="gc-name-field">PLAYER 2 NAME<input maxLength={18} value={redPlayerName} onChange={e => setRedPlayerName(e.target.value)} placeholder="Enter player 2 name"/></label><div className="gc-opponent-mode"><button className={opponentMode === 'human' ? 'active' : ''} onClick={() => setOpponentMode('human')}>2 PLAYERS</button><button className={opponentMode === 'cpu' ? 'active' : ''} onClick={() => setOpponentMode('cpu')}>VS CPU</button></div></article>
       </div>
       <button className="gc-primary" onClick={begin}>ENTER THE ARENA <Swords size={19}/></button>
     </section>}
@@ -324,10 +318,23 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
     let start = performance.now()
     let last = start
     const particles: LiveParticle[] = []
+    // Real illustrated fighter poses and authored elemental artwork. These are
+    // decoded once per clash and reused; the render loop never creates Images.
+    const fighterSprites: Record<string, HTMLImageElement> = {}
+    const fighterFiles = [
+      'blue-idle','blue-punch','blue-kick','blue-hurt','blue-down',
+      'red-idle','red-punch','red-kick','red-hurt','red-down',
+      'blue-water-cast','blue-lightning-cast','blue-shield-cast',
+      'red-fire-cast','red-solar-cast','red-shield-cast',
+    ]
+    for (const key of fighterFiles) { const image = new Image(); image.src = `/images/fighters/${key}.png`; fighterSprites[key] = image }
+    const powerSprites: Record<string, HTMLImageElement> = {}
+    const powerFiles = ['solar','shield','phoenix','frost-nova','ice','water-vortex','plasma','guardian-aegis','water-dragon','impact','speed','lightning','wind','fire','shadow','mend-aura']
+    for (const key of powerFiles) { const image = new Image(); image.src = `/images/power-effects/${key}.png`; powerSprites[key] = image }
     // All 16 transparent VFX textures are preloaded at arena entry and reused by this renderer.
     const resize = () => {
       const rect = stage.getBoundingClientRect()
-      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
       width = Math.max(1, rect.width)
       height = Math.max(1, rect.height)
       canvas.width = Math.round(width * dpr)
@@ -337,6 +344,8 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     }
     resize()
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
     const observer = new ResizeObserver(resize)
     observer.observe(stage)
 
@@ -353,7 +362,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
     }
     const addBurst = (x:number,y:number,color:string,count:number,force:number) => {
       const hue = (() => { const c=hexRgb(color); return c.r>c.g && c.r>c.b ? 20 : c.b>c.r ? 205 : 145 })()
-      for(let i=0;i<count && particles.length<520;i++){
+      for(let i=0;i<count && particles.length<260;i++){
         const angle=rand(0,Math.PI*2), speed=rand(force*.25,force)
         particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:rand(.35,.9),max:.9,size:rand(1.2,4.5),hue,alpha:rand(.5,1)})
       }
@@ -429,175 +438,6 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
       ctx.restore()
     }
 
-    const drawAttack = (x:number,y:number,dir:number,power:Power,t:number,scale=1) => {
-      const r=Math.max(12,width*.018)*scale
-      ctx.save()
-      ctx.translate(x,y);ctx.rotate(dir<0?Math.PI:0)
-      ctx.globalCompositeOperation='source-over'
-      ctx.shadowColor=power.color;ctx.shadowBlur=18*scale
-      if(power.name==='TIDAL DRAGON'){
-        // Large, unmistakable water-dragon projectile: long serpentine body,
-        // swept horns, jaw, eye, whiskers and layered water mane.
-        ctx.save()
-        ctx.lineCap='round';ctx.lineJoin='round'
-        const wave=Math.sin(t*5.2)*r*.16
-        // Long coiling body behind the head
-        for(let k=0;k<5;k++){
-          const yy=(k-2)*r*.22
-          ctx.strokeStyle=rgba(k%2?'#69ddff':'#087fc4',.88-k*.055)
-          ctx.lineWidth=r*(.24-k*.018)
-          ctx.beginPath()
-          ctx.moveTo(-r*3.9,yy+wave)
-          ctx.bezierCurveTo(-r*2.9,yy-r*1.15+Math.sin(t*3+k)*r*.22,-r*1.7,yy+r*1.15,r*.05,yy-r*.18)
-          ctx.stroke()
-        }
-        // Dragon head silhouette facing travel direction
-        const head=ctx.createLinearGradient(-r*1.4,-r*.8,r*2.2,r*.5)
-        head.addColorStop(0,'#07558f');head.addColorStop(.38,'#087fc4');head.addColorStop(.72,'#25c4ed');head.addColorStop(1,'#8cecff')
-        ctx.fillStyle=head;ctx.beginPath()
-        ctx.moveTo(-r*1.65,-r*.45);ctx.quadraticCurveTo(-r*.8,-r*1.35,r*.15,-r*.82)
-        ctx.lineTo(r*.8,-r*1.05);ctx.lineTo(r*1.45,-r*.62)
-        ctx.lineTo(r*2.25,-r*.12);ctx.lineTo(r*1.55,r*.16)
-        ctx.quadraticCurveTo(r*.85,r*.92,-r*.05,r*.65)
-        ctx.lineTo(-r*.85,r*.95);ctx.lineTo(-r*1.45,r*.42);ctx.closePath();ctx.fill()
-        // Horns, crest and fins
-        ctx.fillStyle='#38c9f2'
-        ctx.beginPath();ctx.moveTo(-r*.75,-r*.48);ctx.lineTo(-r*1.45,-r*1.62);ctx.lineTo(-r*.15,-r*.9);ctx.closePath();ctx.fill()
-        ctx.beginPath();ctx.moveTo(r*.05,-r*.65);ctx.lineTo(r*.45,-r*1.55);ctx.lineTo(r*.72,-r*.48);ctx.closePath();ctx.fill()
-        ctx.fillStyle='#36b9ec'
-        for(let k=0;k<4;k++){ctx.beginPath();ctx.moveTo(-r*(1.0-k*.15),r*.22+k*r*.12);ctx.lineTo(-r*(1.75-k*.12),r*(.72+k*.18));ctx.lineTo(-r*(.45-k*.08),r*(.48+k*.12));ctx.closePath();ctx.fill()}
-        // Eye, nostril and jaw highlight
-        ctx.fillStyle='#073c69';ctx.beginPath();ctx.arc(r*.95,-r*.36,r*.105,0,Math.PI*2);ctx.fill()
-        ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(r*.98,-r*.39,r*.035,0,Math.PI*2);ctx.fill()
-        ctx.strokeStyle='rgba(190,246,255,.92)';ctx.lineWidth=Math.max(2,r*.045)
-        ctx.beginPath();ctx.moveTo(r*.55,r*.24);ctx.quadraticCurveTo(r*1.25,r*.58,r*1.92,r*.18)
-        ctx.moveTo(-r*.55,r*.28);ctx.quadraticCurveTo(-r*1.65,r*1.05,-r*2.55,r*.55)
-        ctx.moveTo(-r*.5,-r*.25);ctx.quadraticCurveTo(-r*1.55,-r*1.0,-r*2.35,-r*.65);ctx.stroke()
-        // Scale glints
-        for(let k=0;k<8;k++){const xx=-r*1.1+k*r*.25;ctx.fillStyle='rgba(190,246,255,.72)';ctx.beginPath();ctx.arc(xx,Math.sin(k*1.8+t*3)*r*.2,r*.045,0,Math.PI*2);ctx.fill()}
-        ctx.restore()
-      } else if(power.name==='METEOR KICK'){
-        // A flaming meteor-shaped kick projectile; deliberately not an arrow/beam.
-        ctx.save()
-        ctx.lineCap='round'
-        for(let k=0;k<9;k++){
-          const a=(k/9)*Math.PI*2+t*1.7
-          const len=r*(1.55+(k%3)*.28)
-          ctx.strokeStyle=rgba(k%2?'#ffb15e':'#ff4a20',.78)
-          ctx.lineWidth=r*(.12+(k%2)*.035)
-          ctx.beginPath()
-          ctx.moveTo(-r*.35+Math.cos(a)*r*.25,Math.sin(a)*r*.25)
-          ctx.quadraticCurveTo(-len*.65,Math.sin(a)*len*.9, -len,Math.cos(a)*len*.45)
-          ctx.stroke()
-        }
-        const meteor=ctx.createRadialGradient(-r*.2,-r*.15,r*.08,0,0,r*1.35)
-        meteor.addColorStop(0,'#fff0c4');meteor.addColorStop(.18,'#ffd16a')
-        meteor.addColorStop(.43,'#ffb044');meteor.addColorStop(.72,'#ff5425');meteor.addColorStop(1,'rgba(255,65,20,0)')
-        ctx.fillStyle=meteor;ctx.beginPath();ctx.ellipse(0,0,r*1.2,r*.72,-.12,0,Math.PI*2);ctx.fill()
-        ctx.fillStyle='#ffbd55';ctx.beginPath();ctx.ellipse(r*.15,-r*.04,r*.63,r*.29,-.12,0,Math.PI*2);ctx.fill()
-        // Chunky burning fragments orbit the meteor
-        for(let k=0;k<7;k++){const a=t*2.3+k*Math.PI*2/7;ctx.fillStyle=k%2?'#ff6b2e':'#ffe6a0';ctx.beginPath();ctx.arc(Math.cos(a)*r*(1.1+(k%3)*.16),Math.sin(a)*r*.72, r*(.07+(k%2)*.035),0,Math.PI*2);ctx.fill()}
-        ctx.restore()
-      } else if(power.name==='PHOENIX ROAR'){
-        for(let k=0;k<5;k++){const yy=(k-2)*r*.34;ctx.fillStyle=rgba(k%2?'#ff7a26':'#ffe8a0',.82);ctx.beginPath();ctx.moveTo(-r*1.2,yy);ctx.quadraticCurveTo(-r*.2,yy-r*(1.2+k*.08),r*1.1,yy-r*.15);ctx.quadraticCurveTo(r*.3,yy+r*.65,-r*1.2,yy);ctx.fill()}
-        ctx.fillStyle='#fff5d4';ctx.beginPath();ctx.ellipse(r*.45,0,r*.75,r*.23,0,0,Math.PI*2);ctx.fill()
-      } else if(power.name==='FROST NOVA'){
-        for(let k=0;k<14;k++){const a=k*Math.PI/7+t*.4;ctx.save();ctx.rotate(a);ctx.fillStyle=k%2?'rgba(130,226,255,.8)':'rgba(255,255,255,.95)';ctx.beginPath();ctx.moveTo(r*.35,-r*.12);ctx.lineTo(r*2.1,0);ctx.lineTo(r*.35,r*.12);ctx.closePath();ctx.fill();ctx.restore()}
-        ctx.strokeStyle='rgba(225,252,255,.9)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r*1.1,t,t+Math.PI*1.8);ctx.stroke()
-      } else if(power.name==='OCEAN SPIRAL'){
-        // A readable rotating water vortex: deep-blue core, cyan spiral bands and spray.
-        const vortex=ctx.createRadialGradient(0,0,r*.08,0,0,r*1.65)
-        vortex.addColorStop(0,'#063d75');vortex.addColorStop(.28,'#087fc4');vortex.addColorStop(.62,'#20bde9');vortex.addColorStop(1,'rgba(35,190,238,0)')
-        ctx.fillStyle=vortex;ctx.beginPath();ctx.arc(0,0,r*1.65,0,Math.PI*2);ctx.fill()
-        for(let k=0;k<5;k++){
-          ctx.save();ctx.rotate(t*(k%2?1.25:-.92)+k*.72)
-          ctx.strokeStyle=rgba(k%2?'#39d6ff':'#087fc4',.92-k*.09);ctx.lineWidth=r*(.10-k*.009);ctx.lineCap='round'
-          ctx.beginPath();ctx.ellipse(0,0,r*(.48+k*.22),r*(.22+k*.07),-.24,-Math.PI*.15,Math.PI*1.55);ctx.stroke()
-          ctx.restore()
-        }
-        ctx.fillStyle='#07558f';ctx.beginPath();ctx.arc(r*.12,0,r*.34,0,Math.PI*2);ctx.fill()
-        ctx.fillStyle='rgba(178,245,255,.9)';ctx.beginPath();ctx.arc(r*.22,-r*.1,r*.09,0,Math.PI*2);ctx.fill()
-        for(let k=0;k<9;k++){const a=t*1.7+k*Math.PI*2/9;ctx.fillStyle=rgba('#66e5ff',.82);ctx.beginPath();ctx.arc(Math.cos(a)*r*(1.05+(k%3)*.13),Math.sin(a)*r*(.62+(k%2)*.1),r*.055,0,Math.PI*2);ctx.fill()}
-      } else if(power.type==='FIRE'){
-        // A pointed, layered flame mass with a turbulent tail, not a glowing line.
-        for(let k=0;k<7;k++){
-          const wobble=Math.sin(t*15+k*1.7)*r*.22
-          const len=r*(1.3+k*.22)
-          ctx.fillStyle=rgba(k%3===0?'#fff1bb':k%3===1?power.color:'#ff3b16',.72-k*.055)
-          ctx.beginPath();ctx.moveTo(-r*1.3,wobble)
-          ctx.bezierCurveTo(-len*.45,-r*(.7+k*.12),len*.15,-r*(.55+k*.1),len,0)
-          ctx.bezierCurveTo(len*.15,r*(.55+k*.1),-len*.45,r*(.7+k*.12),-r*1.3,wobble);ctx.fill()
-        }
-        ctx.fillStyle='rgba(255,255,230,.96)';ctx.beginPath();ctx.ellipse(r*.25,0,r*.72,r*.24,0,0,Math.PI*2);ctx.fill()
-      } else if(power.type==='LIGHTNING'){
-        for(let branch=0;branch<5;branch++){
-          const off=(branch-2)*r*.32
-          ctx.strokeStyle=branch%2?'#bceeff':'#ffffff';ctx.lineWidth=branch===2?4:2.2
-          ctx.beginPath();ctx.moveTo(-r*1.6,off*.3)
-          ctx.lineTo(-r*.75,off-r*.3);ctx.lineTo(-r*.2,off+r*.22);ctx.lineTo(r*.45,off-r*.4);ctx.lineTo(r*1.8,off*.15)
-          ctx.stroke()
-        }
-        ctx.fillStyle='rgba(190,245,255,.95)';ctx.beginPath();ctx.arc(0,0,r*.3,0,Math.PI*2);ctx.fill()
-      } else if(power.type==='ICE'){
-        for(let k=0;k<4;k++){
-          const off=(k-1.5)*r*.45
-          ctx.fillStyle=k%2?'rgba(140,231,255,.8)':'rgba(255,255,255,.95)'
-          ctx.beginPath();ctx.moveTo(-r*.9,off);ctx.lineTo(r*(1.5+k*.16),off-r*.18);ctx.lineTo(r*.35,off+r*.2);ctx.closePath();ctx.fill()
-        }
-        ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-r,0);ctx.lineTo(r*1.9,0);ctx.stroke()
-      } else if(power.type==='WATER'){
-        for(let k=0;k<5;k++){
-          const off=(k-2)*r*.25
-          ctx.strokeStyle=rgba(k%2?'#e4fbff':power.color,.75);ctx.lineWidth=r*.24
-          ctx.beginPath();ctx.moveTo(-r*2,off+Math.sin(t*5+k)*r*.2)
-          ctx.bezierCurveTo(-r,off-r*.9,r*.2,off+r*.9,r*2.2,off+Math.sin(t*4+k)*r*.2);ctx.stroke()
-        }
-        const waterCore=ctx.createRadialGradient(r*.12,-r*.08,r*.04,r*.12,0,r*.92);waterCore.addColorStop(0,'rgba(224,250,255,.72)');waterCore.addColorStop(.28,'rgba(51,198,242,.92)');waterCore.addColorStop(1,'rgba(5,91,157,.08)');ctx.fillStyle=waterCore;ctx.beginPath();ctx.ellipse(r*.25,0,r*.78,r*.42,0,0,Math.PI*2);ctx.fill()
-      } else if(power.type==='PLASMA'){
-        // Dense plasma nucleus with rotating ion bands and a hot white centre.
-        const plasma=ctx.createRadialGradient(-r*.18,-r*.12,1,0,0,r*2.05)
-        plasma.addColorStop(0,'#ffffff');plasma.addColorStop(.13,'#e9f4ff')
-        plasma.addColorStop(.34,rgba(power.color,.98));plasma.addColorStop(.72,rgba(power.color,.55));plasma.addColorStop(1,rgba(power.color,0))
-        ctx.fillStyle=plasma;ctx.beginPath();ctx.arc(0,0,r*2.05,0,Math.PI*2);ctx.fill()
-        for(let k=0;k<4;k++){
-          ctx.save();ctx.rotate(t*(k%2?1.6:-1.25)+k*Math.PI/4)
-          ctx.strokeStyle=rgba(k%2?'#ffffff':'#b9d9ff',.9-k*.12);ctx.lineWidth=3+k
-          ctx.beginPath();ctx.ellipse(0,0,r*(1.1+k*.16),r*(.35+k*.08),0,-Math.PI*.78,Math.PI*.78);ctx.stroke()
-          ctx.restore()
-        }
-        for(let k=0;k<7;k++){const a=t*2+k*Math.PI*2/7;ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(Math.cos(a)*r*1.45,Math.sin(a)*r*.72,2.2,0,Math.PI*2);ctx.fill()}
-      } else if(power.type==='SHADOW'){
-        ctx.rotate(t*2)
-        const g=ctx.createRadialGradient(0,0,2,0,0,r*2.1);g.addColorStop(0,'#080512');g.addColorStop(.35,rgba(power.color,.95));g.addColorStop(1,rgba(power.color,0))
-        ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r*2,0,Math.PI*2);ctx.fill()
-        for(let k=0;k<3;k++){ctx.strokeStyle=rgba('#e3d4ff',.9-k*.2);ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r*(.55+k*.38),t+k,t+k+Math.PI*1.35);ctx.stroke()}
-      } else if(power.type==='SOLAR'){
-        const g=ctx.createRadialGradient(0,0,1,0,0,r*2.2);g.addColorStop(0,'#fff');g.addColorStop(.25,'#fff2ae');g.addColorStop(.55,power.color);g.addColorStop(1,rgba(power.color,0))
-        ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r*2.2,0,Math.PI*2);ctx.fill()
-        for(let k=0;k<18;k++){const a=k*Math.PI/9+t*.7;ctx.strokeStyle='rgba(255,246,190,.85)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(Math.cos(a)*r*.9,Math.sin(a)*r*.9);ctx.lineTo(Math.cos(a)*r*(1.5+(k%3)*.3),Math.sin(a)*r*(1.5+(k%3)*.3));ctx.stroke()}
-      } else if(power.type==='SHIELD'){
-        ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=5;ctx.beginPath()
-        ctx.moveTo(r*1.5,0);ctx.lineTo(r*.65,-r*.9);ctx.lineTo(-r*.7,-r*.8);ctx.lineTo(-r*1.35,0);ctx.lineTo(-r*.65,r*.85);ctx.lineTo(r*.65,r*.85);ctx.closePath();ctx.stroke()
-        ctx.fillStyle=rgba(power.color,.3);ctx.fill()
-        ctx.strokeStyle=rgba('#ffffff',.8);ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,r*1.7,t,t+Math.PI*1.3);ctx.stroke()
-      } else if(power.type==='HEAL'){
-        ctx.strokeStyle='rgba(240,255,248,.98)';ctx.lineWidth=6;ctx.lineCap='round'
-        ctx.beginPath();ctx.moveTo(-r*.55,0);ctx.lineTo(r*.55,0);ctx.moveTo(0,-r*.55);ctx.lineTo(0,r*.55);ctx.stroke()
-        ctx.strokeStyle=rgba(power.color,.9);ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r*1.45,t,t+Math.PI*1.65);ctx.stroke()
-        for(let k=0;k<6;k++){const a=k*Math.PI/3+t;ctx.fillStyle=rgba('#b8ffda',.85);ctx.beginPath();ctx.arc(Math.cos(a)*r*1.9,Math.sin(a)*r*1.9,3,0,Math.PI*2);ctx.fill()}
-      } else if(power.type==='WIND'){
-        for(let k=0;k<4;k++){ctx.strokeStyle=rgba('#eaffff',.8-k*.12);ctx.lineWidth=3+k;ctx.beginPath();ctx.moveTo(-r*2,-r*.5+k*r*.32);ctx.bezierCurveTo(-r*.2,-r*1.2+k*r*.32,r*.3,r*1.2+k*r*.32,r*2.2,-r*.1+k*r*.32);ctx.stroke()}
-      } else if(power.type==='IMPACT' || power.type==='SPEED'){
-        ctx.fillStyle=rgba(power.color,.35);ctx.beginPath();ctx.ellipse(0,0,r*2.2,r*.9,0,0,Math.PI*2);ctx.fill()
-        for(let k=0;k<9;k++){const yy=(k-4)*r*.24;ctx.strokeStyle=k%2?'#fff':power.color;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(-r*2,yy);ctx.lineTo(r*(1.4+(k%3)*.25),yy*.35);ctx.stroke()}
-        ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(r*.45,0,r*.25,0,Math.PI*2);ctx.fill()
-      } else {
-        const g=ctx.createRadialGradient(-r*.2,-r*.2,1,0,0,r*1.7);g.addColorStop(0,'#fff');g.addColorStop(.2,power.color);g.addColorStop(1,rgba(power.color,0))
-        ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r*1.7,0,Math.PI*2);ctx.fill()
-        ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,r*1.5,r*.6,t,0,Math.PI*2);ctx.stroke()
-      }
-      ctx.restore()
-    }
     const drawPowerWake = (x1:number,y1:number,x2:number,y2:number,power:Power,t:number) => {
       const dx=x2-x1,dy=y2-y1,dir=dx>=0?1:-1
       // Contrast rail: a restrained navy edge keeps every coloured power readable
@@ -689,12 +529,19 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
       }
     }
 
-    // Procedural-only power renderer. No PNG/SVG power artwork is loaded or drawn.
-    // Each frame draws the live attack silhouette, its internal animation and its glow.
-    const drawProceduralPower = (x:number,y:number,dir:number,power:Power,t:number,scale=1,alpha=1) => {
-      ctx.save()
-      ctx.globalAlpha = alpha
-      drawAttack(x,y,dir,power,t,scale)
+    // Authored transparent elemental artwork is the projectile itself. The
+    // canvas animates its travel, scale, rotation, wake and impact separately.
+    const drawAuthoredPowerArt = (x:number,y:number,dir:number,power:Power,t:number,scale=1,alpha=1) => {
+      const image = powerSprites[powerArtworkKey(power)]
+      if (!image || !image.complete || !image.naturalWidth) return
+      const base = Math.max(26, width * .034) * scale
+      const drawW = base * 4.35
+      const drawH = drawW * (image.naturalHeight / image.naturalWidth)
+      const pulse = 1 + Math.sin(t * 8.5) * .035
+      ctx.save(); ctx.translate(x,y); ctx.scale(dir * pulse,pulse)
+      ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'source-over'
+      ctx.shadowColor = power.color; ctx.shadowBlur = Math.max(8, base * .48)
+      ctx.drawImage(image,-drawW*.5,-drawH*.5,drawW,drawH)
       ctx.restore()
     }
 
@@ -705,66 +552,84 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
       const g=ctx.createRadialGradient(x,y,1,x,y,radius)
       g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.18,rgba(power.color,.95));g.addColorStop(1,rgba(power.color,0))
       ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill()
+      const impactTexture=powerSprites['impact']
+      if(impactTexture?.complete&&impactTexture.naturalWidth){ctx.globalAlpha=.82*(1-progress);ctx.drawImage(impactTexture,x-radius*1.08,y-radius*1.08,radius*2.16,radius*2.16);ctx.globalAlpha=1-progress}
       for(let ring=0;ring<5;ring++){ctx.strokeStyle=rgba(ring%2===0?'#ffffff':power.color,1-progress);ctx.lineWidth=ring===0?6:3;ctx.beginPath();ctx.arc(x,y,radius*(.32+ring*.17),0,Math.PI*2);ctx.stroke()}
       ctx.strokeStyle=rgba('#ffffff',.72*(1-progress));ctx.lineWidth=2;for(let ray=0;ray<18;ray++){const a=ray*Math.PI/9;ctx.beginPath();ctx.moveTo(x+Math.cos(a)*radius*.25,y+Math.sin(a)*radius*.25);ctx.lineTo(x+Math.cos(a)*radius*1.18,y+Math.sin(a)*radius*1.18);ctx.stroke()}
       ctx.restore()
     }
 
     const drawAnimeFighter = (x:number, floorY:number, side:Side, beatName:string, t:number, isWinner:boolean, isVictim:boolean, accent:string) => {
-      const dir = side === 'blue' ? 1 : -1
-      const scale = Math.min(1.8, Math.max(1.2, height / 360))
-      const phase = beatName
-      const bob = Math.sin(t * 5.4 + (side === 'red' ? 1.2 : 0)) * 2.4
-      let lean = 0, arm = -.25, leg = .12, crouch = 0
-      if (phase === 'charge' || phase === 'windup') { crouch = 7; arm = phase === 'charge' ? -.95 : -1.3; lean = -.12 }
-      if (phase === 'release' || phase === 'breakthrough') { lean = isWinner ? .52 : -.2; arm = isWinner ? 1.35 : -.8; leg = isWinner ? .9 : -.1; crouch = -2 }
-      if (phase === 'collision') { crouch = 4; arm = .9; lean = .12 }
-      if (phase === 'impact' && isVictim) { lean = -.72; arm = -1.8; leg = -.8; crouch = -3 }
-      if (phase === 'recovery') { lean = 0; arm = -.15; leg = 0; crouch = 0 }
-      ctx.save(); ctx.translate(x, floorY + bob); ctx.scale(dir * scale, scale)
-      // Aura silhouette and ground shadow.
-      ctx.globalAlpha = .2 + Math.sin(t * 7) * .045
-      ctx.fillStyle = side === 'blue' ? '#54caff' : '#ff785f'
-      ctx.beginPath(); ctx.ellipse(0, -94, 43 + Math.sin(t * 4) * 4, 103, 0, 0, Math.PI * 2); ctx.fill()
-      ctx.globalAlpha = 1
-      ctx.fillStyle = 'rgba(17,42,65,.2)'; ctx.beginPath(); ctx.ellipse(0, 0, 49, 8, 0, 0, Math.PI*2); ctx.fill()
-      ctx.translate(0, -crouch)
+      const ownPower = side === 'blue' ? bluePower : redPower
+      const prefix = side
+      let pose = 'idle'
+      if (isVictim && beatName === 'impact') pose = 'hurt'
+      else if (beatName === 'release' || beatName === 'breakthrough') pose = ['IMPACT','SPEED'].includes(ownPower.type) ? 'kick' : 'punch'
+      else if (beatName === 'recovery') pose = 'idle'
+
+      // Specific cast artwork exists for the most visually distinctive moves;
+      // other powers use the fighter's own punch/kick pose plus their own VFX.
+      const castMap: Record<string,string> = side === 'blue'
+        ? { LIGHTNING:'blue-lightning-cast', WATER:'blue-water-cast', SHIELD:'blue-shield-cast' }
+        : { FIRE:'red-fire-cast', SOLAR:'red-solar-cast', SHIELD:'red-shield-cast' }
+      const castSprite = castMap[ownPower.type]
+      const spriteKey = (beatName === 'windup' || beatName === 'release' || beatName === 'breakthrough') && castSprite
+        ? castSprite : `${prefix}-${pose}`
+      const sprite = fighterSprites[spriteKey] || fighterSprites[`${prefix}-idle`]
+      if (!sprite || !sprite.complete || !sprite.naturalWidth) return
+
+      const bob = beatName === 'charge' ? Math.sin(t * 8 + (side === 'red' ? 1.2 : 0)) * 3.2 : Math.sin(t * 4.8) * 1.4
+      const lean = beatName === 'windup' ? (side === 'blue' ? .035 : -.035)
+        : (beatName === 'release' || beatName === 'breakthrough') ? (isWinner ? (side === 'blue' ? .055 : -.055) : 0)
+        : beatName === 'impact' && isVictim ? (side === 'blue' ? -.16 : .16) : 0
+      const lunge = (beatName === 'release' || beatName === 'breakthrough') && isWinner ? (side === 'blue' ? 1 : -1) * width * .012 * Math.sin(t * 5) : 0
+      const spriteH = Math.min(height * .88, width * .245)
+      const spriteW = spriteH * (sprite.naturalWidth / sprite.naturalHeight)
+
+      ctx.save()
+      ctx.translate(x + lunge, floorY + bob)
       ctx.rotate(lean)
-      const main = side === 'blue' ? '#1978bd' : '#c64c42'
-      const light = accent
-      const dark = side === 'blue' ? '#123c70' : '#692e45'
-      const stroke = (x1:number,y1:number,x2:number,y2:number,w:number,color:string) => { ctx.strokeStyle=color; ctx.lineWidth=w; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke() }
-      // Back leg and boot.
-      stroke(-7, -48, -17 + Math.sin(t*5)*3, -23, 13, dark)
-      stroke(-17 + Math.sin(t*5)*3, -23, -22, -5, 11, main)
-      ctx.fillStyle = dark; ctx.beginPath(); ctx.roundRect(-32,-8,22,9,4); ctx.fill()
-      // Front leg animates into the kick frame.
-      const kneeX = 12 + Math.sin(leg) * 13
-      stroke(8,-48,kneeX,-27,14,main)
-      stroke(kneeX,-27,kneeX+Math.cos(leg)*15,-7,11,dark)
-      ctx.fillStyle = dark; ctx.beginPath(); ctx.roundRect(kneeX+4,-10,23,9,4); ctx.fill()
-      // Torso armour, waist and shoulder plates.
-      const torso = ctx.createLinearGradient(-22,-112,24,-50); torso.addColorStop(0,light); torso.addColorStop(.42,main); torso.addColorStop(1,dark)
-      ctx.fillStyle=torso; ctx.beginPath(); ctx.moveTo(-19,-111);ctx.lineTo(18,-111);ctx.lineTo(24,-67);ctx.lineTo(11,-48);ctx.lineTo(-13,-48);ctx.lineTo(-24,-70);ctx.closePath();ctx.fill()
-      ctx.strokeStyle='rgba(255,255,255,.58)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-10,-105);ctx.lineTo(1,-78);ctx.lineTo(13,-105);ctx.stroke()
-      ctx.fillStyle=light;ctx.beginPath();ctx.moveTo(-23,-106);ctx.lineTo(-34,-96);ctx.lineTo(-24,-78);ctx.lineTo(-12,-91);ctx.closePath();ctx.fill()
-      // Rear arm and front attacking arm.
-      stroke(-19,-101,-31,-83,11,dark); stroke(-31,-83,-36,-68,9,main)
-      const shoulderX=17, shoulderY=-99
-      const elbowX=shoulderX+Math.cos(arm)*20, elbowY=shoulderY+Math.sin(arm)*20
-      stroke(shoulderX,shoulderY,elbowX,elbowY,13,main)
-      stroke(elbowX,elbowY,elbowX+Math.cos(arm+.25)*20,elbowY+Math.sin(arm+.25)*20,10,light)
-      ctx.fillStyle='#f1f7ff';ctx.beginPath();ctx.arc(elbowX+Math.cos(arm+.25)*20,elbowY+Math.sin(arm+.25)*20,6,0,Math.PI*2);ctx.fill()
-      // Neck, face, eyes and stylized hair crest.
-      ctx.fillStyle='#e5b89e';ctx.fillRect(-6,-124,13,15)
-      ctx.fillStyle='#f2c9ad';ctx.beginPath();ctx.ellipse(0,-139,17,20,0,0,Math.PI*2);ctx.fill()
-      ctx.fillStyle=dark;ctx.beginPath();ctx.moveTo(-17,-143);ctx.lineTo(-20,-164);ctx.lineTo(-7,-155);ctx.lineTo(0,-174);ctx.lineTo(8,-155);ctx.lineTo(20,-163);ctx.lineTo(15,-137);ctx.closePath();ctx.fill()
-      ctx.fillStyle='#102d4c';ctx.fillRect(4,-142,8,3)
-      ctx.fillStyle='#fff';ctx.fillRect(8,-142,3,2)
-      // Waist sash and energy trim.
-      ctx.fillStyle=light;ctx.fillRect(-15,-61,30,5);ctx.fillStyle=dark;ctx.fillRect(-7,-60,14,4)
+      // Character contact shadow, kept separate from the transparent artwork.
+      ctx.fillStyle = 'rgba(22,55,82,.20)'
+      ctx.beginPath(); ctx.ellipse(0, 2, spriteW * .27, Math.max(7, spriteH * .026), 0, 0, Math.PI * 2); ctx.fill()
+      if (beatName === 'charge' || beatName === 'windup') {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .13 + Math.sin(t * 8) * .035
+        ctx.strokeStyle = accent; ctx.lineWidth = 3
+        for (let ring = 0; ring < 3; ring++) {
+          ctx.beginPath(); ctx.ellipse(0, -spriteH * .48, spriteW * (.24 + ring * .055), spriteH * (.31 + ring * .035), t * .15 * (ring + 1), 0, Math.PI * 2); ctx.stroke()
+        }
+        ctx.restore()
+      }
+      ctx.shadowColor = accent
+      ctx.shadowBlur = beatName === 'release' || beatName === 'breakthrough' ? 17 : beatName === 'charge' ? 12 : 4
+      // Idle/punch/kick red poses already face inward. The red casting tiles
+      // were authored facing right, so mirror only those cast illustrations.
+      if (side === 'red' && spriteKey.endsWith('-cast')) ctx.scale(-1, 1)
+      ctx.drawImage(sprite, -spriteW * .5, -spriteH, spriteW, spriteH)
       ctx.restore()
     }
+
+    const powerArtworkKey = (power:Power) => {
+      if (power.name === 'TIDAL DRAGON') return 'water-dragon'
+      if (power.name === 'OCEAN SPIRAL') return 'water-vortex'
+      if (power.name === 'PHOENIX ROAR') return 'phoenix'
+      if (power.name === 'FROST NOVA') return 'frost-nova'
+      if (power.name === 'GUARDIAN AEGIS') return 'guardian-aegis'
+      if (power.name === 'MEND AURA') return 'mend-aura'
+      if (power.type === 'LIGHTNING') return 'lightning'
+      if (power.type === 'FIRE') return 'fire'
+      if (power.type === 'ICE') return 'ice'
+      if (power.type === 'SHADOW') return 'shadow'
+      if (power.type === 'SOLAR') return 'solar'
+      if (power.type === 'WIND') return 'wind'
+      if (power.type === 'SHIELD') return 'shield'
+      if (power.type === 'IMPACT') return 'impact'
+      if (power.type === 'PLASMA') return 'plasma'
+      if (power.type === 'SPEED') return 'speed'
+      if (power.type === 'WATER') return 'water-dragon'
+      return 'mend-aura'
+    }
+
 
     const frame=(now:number)=>{
       const dt=Math.min(.04,(now-last)/1000);last=now
@@ -773,7 +638,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
       const midX=width*.5, midY=height*.355
       const blueStart={x:width*.355,y:height*.325}
       const redStart={x:width*.645,y:height*.325}
-      // Procedural articulated fighters animate every rendered frame; these are not position-only image swaps.
+      // Supplied character illustrations animate through distinct authored poses and continuous transforms.
       drawAnimeFighter(width*.205, height*.91, 'blue', valuesRef.current.beat, elapsed, winningSide==='blue', impactSide==='blue' && valuesRef.current.beat==='impact', valuesRef.current.blueAccent)
       drawAnimeFighter(width*.795, height*.91, 'red', valuesRef.current.beat, elapsed, winningSide==='red', impactSide==='red' && valuesRef.current.beat==='impact', valuesRef.current.redAccent)
       const target=impactSide==='blue'?{x:width*.235,y:height*.385}:{x:width*.765,y:height*.385}
@@ -793,15 +658,15 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
         const blueDefensive=['SHIELD','HEAL'].includes(bluePower.type)
         const redDefensive=['SHIELD','HEAL'].includes(redPower.type)
         if(!blueDefensive) {
-          drawProceduralPower(blueStart.x,blueStart.y,1,bluePower,elapsed,.72+charge*.62,.72+charge*.28)
+          drawAuthoredPowerArt(blueStart.x,blueStart.y,1,bluePower,elapsed,.72+charge*.62,.72+charge*.28)
           drawOrb(blueStart.x,blueStart.y,9+charge*16,bluePower.color,bluePower,elapsed,.42+charge*.42)
         }
         if(!redDefensive) {
-          drawProceduralPower(redStart.x,redStart.y,-1,redPower,elapsed,.72+charge*.62,.72+charge*.28)
+          drawAuthoredPowerArt(redStart.x,redStart.y,-1,redPower,elapsed,.72+charge*.62,.72+charge*.28)
           drawOrb(redStart.x,redStart.y,9+charge*16,redPower.color,redPower,elapsed,.42+charge*.42)
         }
-        if(blueDefensive) drawProceduralPower(blueStart.x,blueStart.y-38,1,bluePower,elapsed,.9+charge*.45,.78+charge*.22)
-        if(redDefensive) drawProceduralPower(redStart.x,redStart.y-38,-1,redPower,elapsed,.9+charge*.45,.78+charge*.22)
+        if(blueDefensive) drawAuthoredPowerArt(blueStart.x,blueStart.y-38,1,bluePower,elapsed,.9+charge*.45,.78+charge*.22)
+        if(redDefensive) drawAuthoredPowerArt(redStart.x,redStart.y-38,-1,redPower,elapsed,.9+charge*.45,.78+charge*.22)
         for(let i=0;i<2;i++){
           const origin=i===0?blueStart:redStart
           const power=i===0?bluePower:redPower
@@ -820,8 +685,8 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
         const ry=redStart.y+(midY-redStart.y)*e+Math.sin(p*Math.PI)*-height*.035+separation
         drawPowerWake(blueStart.x,blueStart.y,bx,by,bluePower,elapsed)
         drawPowerWake(redStart.x,redStart.y,rx,ry,redPower,elapsed)
-        drawProceduralPower(bx,by,1,bluePower,elapsed,2.12,1)
-        drawProceduralPower(rx,ry,-1,redPower,elapsed,2.12,1)
+        drawAuthoredPowerArt(bx,by,1,bluePower,elapsed,2.12,1)
+        drawAuthoredPowerArt(rx,ry,-1,redPower,elapsed,2.12,1)
         if(elapsed>1.9){
           const pulse=1+Math.sin(now*.018)*.14
           ctx.save();ctx.globalAlpha=1-collide*.35;ctx.shadowColor=winnerPower.color;ctx.shadowBlur=42
@@ -842,14 +707,14 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
         const y=midY+(target.y-midY)*p
         const loserFade=1-breakthrough
         drawPowerWake(midX,midY,x,y,winnerPower,elapsed)
-        drawProceduralPower(x,y,Math.sign(target.x-midX),winnerPower,elapsed,2.08+breakthrough*.24,1)
-        drawProceduralPower(midX,midY,winningSide==='blue'?-1:1,loserPower,elapsed,.46,loserFade*.45)
+        drawAuthoredPowerArt(x,y,Math.sign(target.x-midX),winnerPower,elapsed,2.08+breakthrough*.24,1)
+        drawAuthoredPowerArt(midX,midY,winningSide==='blue'?-1:1,loserPower,elapsed,.46,loserFade*.45)
         drawOrb(midX,midY,Math.max(1,26*loserFade),loserPower.color,loserPower,elapsed,loserFade*.45)
       }
 
       if(elapsed>=2.75 && elapsed<3.3) {
         drawImpact(target.x,target.y,winnerPower,impact)
-        if (elapsed < 6.65 && Math.random() < .95) addBurst(target.x,target.y,winnerPower.color,11,175)
+        if (Math.random() < .72) addBurst(target.x,target.y,winnerPower.color,11,175)
       }
 
       // Procedural sparks and motes: each particle has its own velocity, drag and lifetime.

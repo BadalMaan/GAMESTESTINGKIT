@@ -1440,7 +1440,7 @@ body{background:var(--bg);color:var(--text)}
 @keyframes gc-power-reveal{from{opacity:0;transform:translateY(7px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:700px){.gc-number-grid{gap:4px!important}.gc-number-grid .gc-number-option{height:48px!important;border-radius:8px!important}.gc-selected-power{padding:9px}.gc-selected-power-icon{width:34px;height:34px;flex-basis:34px;font-size:22px}.gc-selected-power>p{font-size:10px}}
 
-/* Procedural combat rig takes over during a clash; no static pose double-render. */
+/* Live illustrated sprite renderer takes over during a clash; no static pose double-render. */
 .gc-stage.is-clashing .gc-fighter .gc-base-pose{opacity:0!important}
 .gc-live-power-canvas{pointer-events:none!important}
 .gc-damage-number small{display:block;margin-top:4px;font-size:10px;letter-spacing:.12em;text-align:center;color:#fff;text-shadow:0 2px 8px #1b3d5c}
@@ -1452,3 +1452,31 @@ body{background:var(--bg);color:var(--text)}
 .gc-move-stats>span{display:flex;flex-direction:column;gap:2px;padding:6px 4px;border-radius:7px;background:#f0f7fc;border:1px solid #e0edf5;text-align:center}
 .gc-move-stats b{font-size:10px;color:#234e6b;font-variant-numeric:tabular-nums}
 .gc-move-stats small{font-size:7px;font-weight:900;letter-spacing:.1em;color:#7690a2}
+
+/* Final readability and artwork-first overrides. Number choices stay legible
+   even after a player locks their selection; the label is never washed out. */
+.gc-number-grid .gc-number-option,
+.gc-number-grid .gc-number-option:disabled {
+  opacity: 1 !important;
+  filter: none !important;
+}
+.gc-number-grid .gc-number-option .gc-option-number {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  z-index: 2 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #244d69 !important;
+  -webkit-text-fill-color: #244d69 !important;
+  font-size: clamp(23px, 2.5vw, 32px) !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  text-shadow: 0 1px 0 #fff !important;
+}
+.gc-picker.blue .gc-number-option.chosen .gc-option-number { color: #126ca8 !important; -webkit-text-fill-color: #126ca8 !important; }
+.gc-picker.red .gc-number-option.chosen .gc-option-number { color: #b64d3b !important; -webkit-text-fill-color: #b64d3b !important; }
+/* The live canvas now paints the supplied full-body character illustrations,
+   not the old geometric stick-figure fallback. */
+.gc-live-power-canvas { image-rendering: auto !important; }

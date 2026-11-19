@@ -90,4 +90,9 @@ Never place a Supabase `service_role` key in frontend code or any `VITE_` variab
 
 ## Global Super Hero fighting game
 
-Global Super Hero is a one-screen, number-first anime power-clash game. It preserves hidden five-slot power selection, supports two local players or an optional CPU opponent, and uses attack profiles, hitbox checks, multi-hit combos, procedural fighter animation, elemental VFX and synthesized combat audio. See `docs/FIGHTING_GAME_UPGRADE.md` for the engine architecture and verification status.
+Global Super Hero is a one-screen, number-first anime power-clash game. It preserves hidden five-slot power selection, supports two local players or an optional CPU opponent, and uses attack profiles, hitbox checks, multi-hit combos, illustrated fighter pose animation, authored elemental VFX artwork and synthesized combat audio. See `docs/FIGHTING_GAME_UPGRADE.md` for the engine architecture and verification status.
+
+
+## Artwork-first fighting engine update
+
+The live React arena uses the supplied full-body fighter pose artwork and individual transparent elemental power artwork during clashes. See [docs/ARTWORK_ENGINE_REBUILD.md](docs/ARTWORK_ENGINE_REBUILD.md) for the implementation scope, asset list, verification and deployment notes. The optional standalone arena is available at `/arena.html`; the Netlify homepage itself is rendered by the React `SuperheroClash` component.

@@ -13,12 +13,12 @@
 - `src/game/engine/combatEngine.ts`: attack profiles, startup/active/recovery timing, hitbox rectangles, collision test, damage, shields, healing, multi-hit combo damage and impact reaction metadata.
 - `src/game/engine/aiEngine.ts`: optional CPU selection strategy using strength and elemental counters.
 - `src/game/engine/audioEngine.ts`: synthesized, per-element Web Audio cues. Audio failure never blocks gameplay.
-- `src/components/SuperheroClash.tsx`: battle flow, hidden number selection, procedural articulated fighter animation, power rendering and round management.
+- `src/components/SuperheroClash.tsx`: battle flow, hidden number selection, artwork-driven fighter pose animation, authored elemental power artwork, power rendering and round management.
 
 ## Visual combat
-- The clash canvas renders articulated character poses frame-by-frame with charge, wind-up, release, collision, breakthrough, impact and recovery states.
-- Each power family has its own procedural silhouette/effect in the existing canvas renderer: lightning branches, fire waves, ice shards, shadow rings, solar rays, wind cuts, shields, impact/meteor, plasma, speed dash, water vortex/dragon and healing pulse.
-- The effect renderer uses a capped particle pool, device-pixel-ratio scaling and `requestAnimationFrame`; the browser schedules frames at the display's refresh rate where supported.
+- The clash canvas renders the supplied full-body character artwork using distinct idle, punch, kick, cast, hurt and down poses, with animated charge, wind-up, release, collision, breakthrough, impact and recovery states.
+- Each power family uses its own supplied transparent artwork asset: lightning, fire/phoenix, ice/frost nova, shadow, solar, wind, shield/aegis, impact, plasma, speed, water vortex/dragon and healing pulse. Motion trails, charge glow, impact bursts and particles are layered around the authored artwork.
+- The effect renderer uses a capped particle pool, reusable preloaded image assets, device-pixel-ratio scaling and `requestAnimationFrame`; the browser schedules frames at the display's refresh rate where supported.
 - Fighter accent palettes and passive strength bonuses vary by selected character.
 
 ## Performance and verification
@@ -29,3 +29,6 @@
 
 ## Deploy
 Run `npm install`, `npm run build`, and `npm run preview`. Deploy the project root to the existing hosting setup after the production build passes.
+
+
+For the latest artwork-first implementation and exact validation results, see `docs/ARTWORK_ENGINE_REBUILD.md`.

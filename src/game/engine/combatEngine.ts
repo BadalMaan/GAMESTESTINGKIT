@@ -66,7 +66,7 @@ export function overlaps(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
 }
 
-/** Resolve the legacy power-strength contest through attack profiles and a real AABB contact test. */
+/** Resolve the power-strength contest, then apply a directional world-space hitbox test. */
 export function resolveExchange(
   blue: CombatPower,
   red: CombatPower,
@@ -80,13 +80,35 @@ export function resolveExchange(
     : blue.strength > red.strength ? 'blue' : 'red'
   const winningPower = winner === 'blue' ? blue : red
   const profile = winner === 'blue' ? blueProfile : redProfile
-  // Fighters occupy mirrored lanes. Projectile attacks travel through the center;
-  // close-range moves use a shorter forward hitbox but dash into contact first.
-  const attacker = winner === 'blue' ? { x: 0, y: 0, width: 120, height: 180 } : { x: 520, y: 0, width: 120, height: 180 }
-  const target = winner === 'blue' ? { x: 520, y: 0, width: 120, height: 180 } : { x: 0, y: 0, width: 120, height: 180 }
-  const contactDistance = profile.projectile ? Math.max(profile.range, profile.hitbox.width) : profile.range + 430
-  const attackBox = { x: winner === 'blue' ? attacker.x : attacker.x - contactDistance, y: attacker.y + profile.hitbox.y + 74, width: contactDistance, height: profile.hitbox.height }
-  const targetBox = { ...target, y: -74, height: 148 }
+  // Two mirrored fighter lanes use a world-space AABB contact test. Ranged
+  // moves travel from the attacker's front edge; melee moves first lunge into
+  // their authored reach, then test the actual local hitbox against the target.
+  const attacker = winner === 'blue'
+    ? { x: 0, y: 0, width: 120, height: 180 }
+    : { x: 520, y: 0, width: 120, height: 180 }
+  const target = winner === 'blue'
+    ? { x: 520, y: 0, width: 120, height: 180 }
+    : { x: 0, y: 0, width: 120, height: 180 }
+  const laneGap = winner === 'blue'
+    ? target.x - (attacker.x + attacker.width)
+    : attacker.x - (target.x + target.width)
+  const meleeReach = profile.range + profile.hitbox.width
+  const lunge = profile.projectile ? 0 : Math.max(0, laneGap - meleeReach + 3)
+  const hitboxWidth = profile.projectile ? profile.range : meleeReach
+  const attackBox = winner === 'blue'
+    ? {
+        x: attacker.x + attacker.width + lunge + profile.hitbox.x,
+        y: attacker.y + 74 + profile.hitbox.y,
+        width: hitboxWidth,
+        height: profile.hitbox.height,
+      }
+    : {
+        x: attacker.x - lunge - hitboxWidth - profile.hitbox.x,
+        y: attacker.y + 74 + profile.hitbox.y,
+        width: hitboxWidth,
+        height: profile.hitbox.height,
+      }
+  const targetBox = { x: target.x, y: target.y + 0, width: target.width, height: target.height }
   const hitboxConnected = overlaps(attackBox, targetBox)
   const victim: CombatSide = winner === 'blue' ? 'red' : 'blue'
   const rawDamage = hitboxConnected ? profile.damage + Math.max(0, profile.hitCount - 1) * Math.round(profile.damage * 0.12) : 0
