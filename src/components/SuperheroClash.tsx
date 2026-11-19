@@ -56,7 +56,7 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
   const [clashId, setClashId] = useState(0)
   const [impactSide, setImpactSide] = useState<Side | null>(null)
   const [dominantSide, setDominantSide] = useState<Side | null>(null)
-  const [clashBeat, setClashBeat] = useState<'charge' | 'release' | 'collision' | 'breakthrough' | 'impact'>('charge')
+  const [clashBeat, setClashBeat] = useState<'charge' | 'windup' | 'release' | 'collision' | 'breakthrough' | 'impact' | 'recovery'>('charge')
   const [impactDamage, setImpactDamage] = useState(0)
   const timersRef = useRef<number[]>([])
   const clearCombatTimers = () => { timersRef.current.forEach(timer => window.clearTimeout(timer)); timersRef.current = [] }
@@ -85,6 +85,11 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
       return `/images/fighters/${side}-${action}.png`
     }
     return `/images/fighters/${side}-idle.png`
+  }
+  const fighterActionImage = (side: Side, power: Power | null) => {
+    if (!power || ['SHIELD', 'HEAL'].includes(power.type)) return null
+    const action = ['IMPACT', 'SPEED'].includes(power.type) ? 'kick' : 'punch'
+    return `/images/fighters/${side}-${action}.png`
   }
 
   const begin = () => {
@@ -128,15 +133,18 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
     setBlueReaction('guard')
     setRedReaction('guard')
 
-    // Cinematic timeline: charge → release → collision → breakthrough → impact.
-    timersRef.current.push(window.setTimeout(() => setClashBeat('release'), 360))
-    timersRef.current.push(window.setTimeout(() => setClashBeat('collision'), 920))
-    timersRef.current.push(window.setTimeout(() => setClashBeat('breakthrough'), 1320))
+    // Deliberate cinematic timeline. The game remains turn-based; only the
+    // presentation of the already-locked result is stretched into readable beats.
+    timersRef.current.push(window.setTimeout(() => setClashBeat('windup'), 1050))
+    timersRef.current.push(window.setTimeout(() => setClashBeat('release'), 2450))
+    timersRef.current.push(window.setTimeout(() => setClashBeat('collision'), 4250))
+    timersRef.current.push(window.setTimeout(() => setClashBeat('breakthrough'), 5150))
     timersRef.current.push(window.setTimeout(() => {
       setClashBeat('impact')
       setBlueReaction(blueTakesHit ? (nextBlue <= 0 ? 'fall' : 'hurt') : 'guard')
       setRedReaction(redTakesHit ? (nextRed <= 0 ? 'fall' : 'hurt') : 'guard')
-    }, 1760))
+    }, 6250))
+    timersRef.current.push(window.setTimeout(() => setClashBeat('recovery'), 7200))
     timersRef.current.push(window.setTimeout(() => {
       setBlueHealth(nextBlue)
       setRedHealth(nextRed)
@@ -148,7 +156,7 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
       } else {
         setPhase('result')
       }
-    }, 3150))
+    }, 8250))
   }
   const nextRound = () => {
     clearCombatTimers(); setDominantSide(null); setImpactDamage(0); setClashBeat('charge')
@@ -179,6 +187,8 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
       <div className={`gc-stage ${phase === 'clash' ? `is-clashing beat-${clashBeat} dominant-${dominantSide}` : ''} ${phase === 'result' ? `impact-${impactSide}` : ''}`} key={clashId}>
         <div className="gc-arena-backdrop"><img src="/images/arena-background.png" alt="Grand championship arena"/><div className="gc-arena-vignette"/><div className="gc-floor-ring ring-one"/><div className="gc-floor-ring ring-two"/></div>
         {phase === 'clash' && <>
+          <div className={`gc-hand-charge blue ${clashBeat}`} aria-hidden="true"><i/><b/><em/></div>
+          <div className={`gc-hand-charge red ${clashBeat}`} aria-hidden="true"><i/><b/><em/></div>
           <PowerBlast side="blue" power={bluePower} beat={clashBeat} outcome={dominantSide === "blue" ? "dominant" : "collapsed"} />
           <PowerBlast side="red" power={redPower} beat={clashBeat} outcome={dominantSide === "red" ? "dominant" : "collapsed"} />
           {impactSide && <div className={`gc-hit-spark gc-hit-${impactSide}`} aria-hidden="true"/>}
@@ -187,10 +197,12 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
           <div className="gc-impact"><i/><b>{clashBeat === 'impact' ? 'DIRECT HIT' : 'CLASH'}</b><i/></div>
         </>}
         <div className={`gc-fighter blue ${phase === 'clash' ? `blue-attack pose-${poseForPower(bluePower)} ${clashBeat === 'impact' && impactSide === 'blue' ? 'blue-hurt' : ''} ${clashBeat === 'impact' && impactSide === 'blue' && blueHealth - impactDamage <= 0 ? 'blue-fall' : ''}` : phase === 'result' ? `blue-${blueReaction}` : phase === 'finished' && winner === 'red' ? 'blue-fall' : ''}`}>
-          <img src={fighterImage('blue', bluePower, blueReaction, phase === 'clash')} alt={`${blueDisplayName} fighter action`} />
+          <img className="gc-base-pose" src={fighterImage('blue', bluePower, blueReaction, false)} alt={`${blueDisplayName} fighter action`} />
+          {phase === 'clash' && bluePower && !['SHIELD', 'HEAL'].includes(bluePower.type) && <img className={`gc-action-overlay blue-action ${clashBeat}`} src={fighterActionImage('blue', bluePower) || ''} alt="" aria-hidden="true" />}
         </div>
         <div className={`gc-fighter red ${phase === 'clash' ? `red-attack pose-${poseForPower(redPower)} ${clashBeat === 'impact' && impactSide === 'red' ? 'red-hurt' : ''} ${clashBeat === 'impact' && impactSide === 'red' && redHealth - impactDamage <= 0 ? 'red-fall' : ''}` : phase === 'result' ? `red-${redReaction}` : phase === 'finished' && winner === 'blue' ? 'red-fall' : ''}`}>
-          <img src={fighterImage('red', redPower, redReaction, phase === 'clash')} alt={`${redDisplayName} fighter action`} />
+          <img className="gc-base-pose" src={fighterImage('red', redPower, redReaction, false)} alt={`${redDisplayName} fighter action`} />
+          {phase === 'clash' && redPower && !['SHIELD', 'HEAL'].includes(redPower.type) && <img className={`gc-action-overlay red-action ${clashBeat}`} src={fighterActionImage('red', redPower) || ''} alt="" aria-hidden="true" />}
         </div>
         {phase === 'clash' && <div className={`gc-support-aura blue ${bluePower?.type === 'SHIELD' ? 'shield' : bluePower?.type === 'HEAL' ? 'heal' : ''}`} />}
         {phase === 'clash' && <div className={`gc-support-aura red ${redPower?.type === 'SHIELD' ? 'shield' : redPower?.type === 'HEAL' ? 'heal' : ''}`} />}
@@ -203,7 +215,7 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
         {phase === 'p1' && <><span className="gc-dot blue-dot"/> PLAYER 1 — CHOOSE A NUMBER</>}
         {phase === 'p2' && <><span className="gc-dot red-dot"/> PLAYER 2 — YOUR TURN. PLAYER 1'S PICK IS HIDDEN.</>}
         {phase === 'ready' && <><Sparkles size={16}/> BOTH POWERS LOCKED — READY TO REVEAL?</>}
-        {phase === 'clash' && <><Zap size={16}/> ATTACK IN MOTION — WATCH THE IMPACT</>}
+        {phase === 'clash' && <><Zap size={16}/> POWER CHARGING — THE STRIKE IS COMING</>}
         {phase === 'result' && <><Shield size={16}/> ROUND COMPLETE — CHOOSE AGAIN</>}
         {phase === 'finished' && <><Crown size={16}/> BATTLE FINISHED</>}
       </div>
@@ -246,7 +258,7 @@ const powerArtwork: Record<string, string> = {
   'GUARDIAN AEGIS': 'guardian-aegis', 'MEND AURA': 'mend-aura',
 }
 
-function PowerBlast({ side, power, beat, outcome }: { side: Side; power: Power | null; beat: 'charge' | 'release' | 'collision' | 'breakthrough' | 'impact'; outcome: 'dominant' | 'collapsed' }) {
+function PowerBlast({ side, power, beat, outcome }: { side: Side; power: Power | null; beat: 'charge' | 'windup' | 'release' | 'collision' | 'breakthrough' | 'impact' | 'recovery'; outcome: 'dominant' | 'collapsed' }) {
   if (!power) return null
   const artwork = powerArtwork[power.name] || 'plasma'
   return <div className={`gc-blast ${side} power-${power.type.toLowerCase()} artwork-${artwork} beat-${beat} outcome-${outcome}`} style={{ '--blast': power.color, '--blast2': `${power.color}cc` } as CSSProperties & { '--blast': string; '--blast2': string }} aria-label={`${power.name} visual attack`}>

@@ -954,3 +954,243 @@ body{background:var(--bg);color:var(--text)}
 /* The arena artwork remains untouched; only the combat layers animate. */
 .gc-stage.is-clashing .gc-hit-spark {opacity:0!important;animation:none!important}
 .gc-stage.is-clashing.beat-impact .gc-hit-spark {animation:target-hit .72s ease-out both!important}
+
+
+/* ================================================================
+   LIVE CAST PASS — slow, readable hand-to-target choreography
+   Turn selection, ATTACK button, power rules, heroes and arena stay intact.
+   ================================================================ */
+.gc-stage.is-clashing {
+  animation:arena-stage-rumble 8.25s ease both!important;
+}
+.gc-stage.is-clashing .gc-fighter.blue {
+  animation:arena-blue-caster-sequence 8.25s cubic-bezier(.22,.7,.18,1) both!important;
+  will-change:translate,filter;
+}
+.gc-stage.is-clashing .gc-fighter.red {
+  animation:arena-red-caster-sequence 8.25s cubic-bezier(.22,.7,.18,1) both!important;
+  will-change:translate,filter;
+}
+@keyframes arena-blue-caster-sequence {
+  0%,100%{translate:0 0}
+  9%{translate:0 2px}
+  17%{translate:4px -3px}
+  27%{translate:10px -2px}
+  39%{translate:28px -2px}
+  47%{translate:48px 0}
+  56%{translate:48px 0}
+  65%{translate:34px 0}
+  73%{translate:0 0}
+  76%,100%{translate:0 0}
+}
+@keyframes arena-red-caster-sequence {
+  0%,100%{translate:0 0}
+  9%{translate:0 2px}
+  17%{translate:-4px -3px}
+  27%{translate:-10px -2px}
+  39%{translate:-28px -2px}
+  47%{translate:-48px 0}
+  56%{translate:-48px 0}
+  65%{translate:-34px 0}
+  73%{translate:0 0}
+  76%,100%{translate:0 0}
+}
+.gc-fighter .gc-base-pose,
+.gc-fighter .gc-action-overlay {
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  object-fit:contain!important;object-position:center bottom!important;
+}
+.gc-fighter .gc-base-pose {z-index:1}
+.gc-fighter .gc-action-overlay {
+  z-index:2;opacity:0;pointer-events:none;will-change:opacity,transform;
+  filter:drop-shadow(0 0 8px #ffffff35);
+}
+.gc-fighter .gc-action-overlay.windup {
+  opacity:1;animation:arena-action-windup 1.4s cubic-bezier(.2,.7,.2,1) both!important;
+}
+.gc-fighter .gc-action-overlay.release {
+  opacity:1;animation:arena-action-release 1.8s cubic-bezier(.18,.72,.2,1) both!important;
+}
+.gc-fighter .gc-action-overlay.collision {opacity:1;transform:translateY(-2px) scale(1.015)}
+.gc-fighter .gc-action-overlay.breakthrough {opacity:.78;transform:translateY(0) scale(1)}
+.gc-fighter .gc-action-overlay.impact,
+.gc-fighter .gc-action-overlay.recovery {opacity:0;transition:opacity .22s ease}
+@keyframes arena-action-windup {
+  0%{opacity:0;transform:translateY(9px) scale(.975);filter:brightness(1)}
+  35%{opacity:.3;transform:translateY(5px) scale(.985)}
+  100%{opacity:1;transform:translateY(0) scale(1.005);filter:brightness(1.12)}
+}
+@keyframes arena-action-release {
+  0%{opacity:1;transform:translateY(0) scale(1.005)}
+  22%{opacity:1;transform:translateY(-5px) scale(1.025);filter:brightness(1.2)}
+  58%{opacity:1;transform:translateY(0) scale(1)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+
+/* Power gathers at the fighter's extended hand before it leaves the body. */
+.gc-hand-charge {
+  position:absolute;z-index:7;top:22%;width:6%;aspect-ratio:1;border-radius:50%;
+  opacity:0;pointer-events:none;transform:scale(.2);
+  background:radial-gradient(circle,#fff 0 3%,var(--hand-glow,#8ceaff) 10%,transparent 68%);
+  filter:drop-shadow(0 0 12px var(--hand-glow,#8ceaff)) drop-shadow(0 0 28px var(--hand-glow,#8ceaff));
+}
+.gc-hand-charge.blue {left:36.5%;--hand-glow:#69dfff}
+.gc-hand-charge.red {right:30.5%;--hand-glow:#ff946e}
+.gc-hand-charge i,.gc-hand-charge b,.gc-hand-charge em {
+  position:absolute;inset:13%;border:2px solid var(--hand-glow);border-radius:50%;
+  content:"";display:block;
+}
+.gc-hand-charge i {animation:arena-hand-ring 1.15s ease-out infinite}
+.gc-hand-charge b {inset:25%;border-style:dashed;animation:arena-hand-spin 2.2s linear infinite}
+.gc-hand-charge em {inset:39%;background:#fff;border:0;box-shadow:0 0 14px #fff,0 0 30px var(--hand-glow)}
+.gc-hand-charge.charge {opacity:.5;transform:scale(.65);transition:opacity .4s,transform .8s}
+.gc-hand-charge.windup {opacity:1;transform:scale(1);animation:arena-hand-charge 1.4s ease-in-out both}
+.gc-hand-charge.release {opacity:.9;transform:scale(1.05);animation:arena-hand-release .7s ease-out both}
+.gc-hand-charge.collision,.gc-hand-charge.breakthrough,.gc-hand-charge.impact,.gc-hand-charge.recovery {opacity:0;transition:opacity .18s}
+@keyframes arena-hand-ring {0%{transform:scale(.4);opacity:.9}100%{transform:scale(1.8);opacity:0}}
+@keyframes arena-hand-spin {to{transform:rotate(360deg)}}
+@keyframes arena-hand-charge {0%{transform:scale(.5);filter:brightness(1)}55%{transform:scale(1.2);filter:brightness(1.6)}100%{transform:scale(1);filter:brightness(1.2)}}
+@keyframes arena-hand-release {0%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:scale(2.4)}}
+
+/* Re-anchor the real power artwork at each character's hand, not at the screen edge. */
+.gc-stage.is-clashing .gc-blast {
+  top:8%!important;width:22%!important;height:36%!important;
+  opacity:1!important;filter:drop-shadow(0 0 12px var(--blast)) drop-shadow(0 0 28px var(--blast2))!important;
+  animation:none!important;overflow:visible!important;
+}
+.gc-stage.is-clashing .gc-blast.blue {left:36%!important;right:auto!important;transform:none!important}
+.gc-stage.is-clashing .gc-blast.red {right:30%!important;left:auto!important;transform:scaleX(-1)!important}
+.gc-stage.is-clashing .gc-blast-art {
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  object-fit:contain!important;object-position:center!important;opacity:0!important;
+  transform:translateX(0) scale(.45)!important;will-change:transform,opacity,filter;
+  filter:brightness(1.25) saturate(1.25) drop-shadow(0 0 12px var(--blast)) drop-shadow(0 0 26px var(--blast2))!important;
+}
+.gc-stage.is-clashing.beat-charge .gc-blast-art {opacity:0!important}
+.gc-stage.is-clashing.beat-windup .gc-blast-art {
+  opacity:.18!important;transform:translateX(0) scale(.52)!important;
+  transition:opacity .65s ease,transform .8s cubic-bezier(.2,.7,.2,1)!important;
+}
+.gc-stage.is-clashing.beat-release .gc-blast-art {
+  opacity:1!important;animation:arena-hand-to-centre 1.8s cubic-bezier(.18,.7,.2,1) both!important;
+}
+@keyframes arena-hand-to-centre {
+  0%{opacity:0;transform:translateX(0) scale(.46);filter:brightness(1.2) drop-shadow(0 0 8px var(--blast))}
+  18%{opacity:1;transform:translateX(2%) scale(.7)}
+  72%{opacity:1;transform:translateX(22%) scale(1.02)}
+  100%{opacity:1;transform:translateX(29%) scale(1.08);filter:brightness(1.45) drop-shadow(0 0 18px var(--blast)) drop-shadow(0 0 38px var(--blast2))}
+}
+.gc-stage.is-clashing.beat-collision .gc-blast-art {
+  opacity:1!important;animation:arena-power-compress-slow .9s cubic-bezier(.18,.72,.2,1) both!important;
+}
+@keyframes arena-power-compress-slow {
+  0%{opacity:1;transform:translateX(29%) scale(1.08)}
+  48%{opacity:1;transform:translateX(24%) scale(.82)}
+  100%{opacity:.78;transform:translateX(20%) scale(.58)}
+}
+.gc-stage.is-clashing.beat-breakthrough .gc-blast.outcome-collapsed .gc-blast-art {
+  opacity:0!important;animation:arena-power-fade-collapse .8s ease-in both!important;
+}
+.gc-stage.is-clashing.beat-breakthrough .gc-blast.outcome-dominant .gc-blast-art {
+  opacity:1!important;animation:arena-power-breakthrough-slow .95s cubic-bezier(.12,.78,.15,1) both!important;
+}
+@keyframes arena-power-fade-collapse {
+  0%{opacity:.8;transform:translateX(20%) scale(.58)}
+  100%{opacity:0;transform:translateX(20%) scale(.08) rotate(24deg);filter:blur(8px)}
+}
+@keyframes arena-power-breakthrough-slow {
+  0%{opacity:1;transform:translateX(20%) scale(.58)}
+  45%{opacity:1;transform:translateX(40%) scale(1.12)}
+  100%{opacity:1;transform:translateX(65%) scale(1.28)}
+}
+.gc-stage.is-clashing.beat-impact .gc-blast-art {opacity:.08!important;filter:blur(5px)!important}
+.gc-stage.is-clashing .gc-blast-core,
+.gc-stage.is-clashing .gc-blast-trail,
+.gc-stage.is-clashing .gc-blast-particles,
+.gc-stage.is-clashing .gc-blast-sparks {display:block!important}
+.gc-stage.is-clashing .gc-blast-core {
+  position:absolute;left:0;right:0;top:46%;height:8px;border-radius:50%;
+  background:linear-gradient(90deg,transparent,var(--blast),#fff,var(--blast2),transparent);
+  box-shadow:0 0 16px var(--blast),0 0 32px var(--blast2);opacity:.8;
+}
+.gc-stage.is-clashing .gc-blast-trail {
+  position:absolute;left:0;right:0;top:49%;height:2px;
+  background:linear-gradient(90deg,transparent,#fff,var(--blast),transparent);opacity:.8;
+}
+.gc-stage.is-clashing .gc-blast-particles {
+  position:absolute;left:42%;top:24%;width:42%;height:52%;border-radius:50%;
+  background:radial-gradient(circle,var(--blast2) 0 4%,var(--blast) 12%,transparent 70%);
+  filter:blur(2px);opacity:.65;animation:arena-energy-pulse .7s ease-in-out infinite alternate;
+}
+.gc-stage.is-clashing .gc-blast-sparks {
+  position:absolute;inset:12%;border-radius:50%;
+  background:repeating-conic-gradient(from 0deg,transparent 0deg 17deg,var(--blast2) 18deg 19deg,transparent 20deg 34deg);
+  mask-image:radial-gradient(circle,transparent 0 30%,#000 42% 48%,transparent 65%);
+  opacity:.55;animation:arena-hand-spin 3s linear infinite;
+}
+@keyframes arena-energy-pulse {to{transform:scale(1.18);opacity:1}}
+
+/* A slower collision builds, compresses and then throws the winning power forward. */
+.gc-stage.is-clashing.beat-collision:before {
+  animation:arena-clash-core-slow 1.05s cubic-bezier(.12,.72,.2,1) both!important;
+}
+@keyframes arena-clash-core-slow {
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.12)}
+  35%{opacity:1;transform:translate(-50%,-50%) scale(.82)}
+  72%{opacity:1;transform:translate(-50%,-50%) scale(.64)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}
+}
+.gc-stage.is-clashing.beat-breakthrough .gc-breakthrough {animation:arena-break-line-slow .9s cubic-bezier(.1,.8,.15,1) both!important}
+@keyframes arena-break-line-slow {0%{opacity:0;width:0}30%{opacity:1;width:30%}70%{opacity:1;width:72%}100%{opacity:0;width:100%}}
+.gc-stage.is-clashing.beat-impact:after {animation:arena-target-impact-slow 1s cubic-bezier(.12,.78,.18,1) both!important}
+@keyframes arena-target-impact-slow {
+  0%{opacity:0;transform:scale(.08)}
+  18%{opacity:1;transform:scale(.68)}
+  46%{opacity:1;transform:scale(1.18)}
+  100%{opacity:0;transform:scale(2.25)}
+}
+.gc-stage.is-clashing.beat-impact .gc-fighter.blue.blue-hurt,
+.gc-stage.is-clashing.beat-impact .gc-fighter.red.red-hurt {
+  animation:arena-live-hit-recoil-slow .95s cubic-bezier(.12,.78,.2,1) both!important;
+}
+@keyframes arena-live-hit-recoil-slow {
+  0%{translate:0 0;rotate:0;filter:brightness(1)}
+  20%{translate:-18px -5px;rotate:-5deg;filter:brightness(1.65)}
+  48%{translate:-34px 0;rotate:-9deg;filter:brightness(1.3)}
+  72%{translate:-20px 1px;rotate:4deg}
+  100%{translate:0 0;rotate:0;filter:brightness(1)}
+}
+.gc-stage.is-clashing.beat-impact .gc-fighter.blue.blue-fall,
+.gc-stage.is-clashing.beat-impact .gc-fighter.red.red-fall {
+  animation:arena-live-knockout-slow 1.25s cubic-bezier(.12,.72,.2,1) both!important;
+}
+@keyframes arena-live-knockout-slow {
+  0%{translate:0 0;rotate:0}
+  20%{translate:-12px -6px;rotate:-7deg}
+  55%{translate:-30px 10px;rotate:-35deg}
+  100%{translate:-32px 24px;rotate:-78deg}
+}
+.gc-stage.is-clashing.beat-impact {animation:arena-impact-camera-slow .55s ease-out both!important}
+@keyframes arena-impact-camera-slow {
+  0%,100%{transform:translate3d(0,0,0)}
+  20%{transform:translate3d(-3px,1px,0)}
+  40%{transform:translate3d(3px,-1px,0)}
+  60%{transform:translate3d(-2px,1px,0)}
+  80%{transform:translate3d(1px,0,0)}
+}
+.gc-stage.is-clashing.beat-impact .gc-damage-number {animation:arena-damage-pop 1.25s ease-out both}
+.gc-stage.is-clashing.beat-recovery .gc-fighter {filter:brightness(1)!important}
+@media(max-width:760px) {
+  .gc-stage.is-clashing .gc-blast {top:10%!important;width:30%!important;height:34%!important}
+  .gc-stage.is-clashing .gc-blast.blue {left:31%!important}
+  .gc-stage.is-clashing .gc-blast.red {right:26%!important}
+  .gc-hand-charge {top:20%;width:10%}
+  .gc-hand-charge.blue {left:31%}
+  .gc-hand-charge.red {right:26%}
+}
+@media(prefers-reduced-motion:reduce) {
+  .gc-stage.is-clashing .gc-fighter,
+  .gc-stage.is-clashing .gc-blast-art,
+  .gc-stage.is-clashing .gc-action-overlay,
+  .gc-stage.is-clashing .gc-hand-charge {animation-duration:.08ms!important;transition:none!important}
+}
