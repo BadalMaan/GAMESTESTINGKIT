@@ -36,6 +36,18 @@ const powerPool: Power[] = [
   { name: 'CYCLONE EDGE', type: 'WIND', icon: '〰', strength: 79, color: '#9ce9d2', note: 'A rotating wind blade cuts across the arena.' },
   { name: 'TIDAL SURGE', type: 'WATER', icon: '≈', strength: 89, color: '#56cfff', note: 'A rising water surge sweeps the opponent away.' },
   { name: 'AEGIS REFLECT', type: 'SHIELD', icon: '⬡', strength: 85, color: '#8bd6ff', note: 'A reflective barrier turns force back outward.' },
+  { name: 'STARFALL RIFT', type: 'SOLAR', icon: '✦', strength: 92, color: '#ffd36c', note: 'A star-bright rift detonates over the rival.' },
+  { name: 'THUNDER GOD SPEAR', type: 'LIGHTNING', icon: 'ϟ', strength: 95, color: '#72dcff', note: 'A forked thunder spear tears across the arena.' },
+  { name: 'GLACIAL PRISON', type: 'ICE', icon: '❄', strength: 90, color: '#9beaff', note: 'A crystal cage erupts around the target.' },
+  { name: 'INFERNO DRAGON', type: 'FIRE', icon: '🔥', strength: 96, color: '#ff754d', note: 'A roaring flame dragon crashes into the rival.' },
+  { name: 'ASTRAL CHAIN', type: 'SHADOW', icon: '⛓', strength: 88, color: '#b58aff', note: 'A spectral chain lashes and bursts on impact.' },
+  { name: 'GALE PHANTOM', type: 'WIND', icon: '〰', strength: 82, color: '#a9e6cf', note: 'A compressed gale cuts through the arena.' },
+  { name: 'TIDAL MAELSTROM', type: 'WATER', icon: '🌊', strength: 94, color: '#53cfff', note: 'A spiralling ocean surge sweeps the rival away.' },
+  { name: 'PRISM BARRIER', type: 'SHIELD', icon: '⬡', strength: 84, color: '#83c9ff', note: 'A refracting prism barrier absorbs the blow.' },
+  { name: 'NOVA PULSE', type: 'PLASMA', icon: '✺', strength: 91, color: '#76a9ff', note: 'A compressed star pulse detonates at close range.' },
+  { name: 'METEOR RAIN', type: 'IMPACT', icon: '☄', strength: 93, color: '#ff9b70', note: 'A shower of burning impacts overwhelms the rival.' },
+  { name: 'CELESTIAL MEND', type: 'HEAL', icon: '✚', strength: 73, color: '#65dda7', note: 'A celestial pulse restores the fighter.' },
+  { name: 'VOID STEP', type: 'SPEED', icon: '◈', strength: 86, color: '#d0a8ff', note: 'A shadow-step strike appears at the rival’s flank.' },
 ]
 function shufflePowers(): Power[] {
   const pool = [...powerPool]
@@ -238,19 +250,16 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
         {phase === 'finished' && <><Crown size={16}/> BATTLE FINISHED</>}
       </div>
 
-      {(phase === 'p1' || phase === 'p2' || phase === 'ready') && <div className="gc-pick-panels">
-        <PowerPicker side="blue" powers={bluePowers} selected={phase === 'ready' ? bluePick : phase === 'p1' ? bluePick : null} revealed={phase === 'ready'} active={phase === 'p1'} locked={bluePick !== null} onChoose={i => choose('blue', i)} />
+      <div className={`gc-pick-panels gc-pick-panels-persistent ${phase === 'clash' ? 'is-fighting' : ''}`}>
+        <PowerPicker side="blue" powers={bluePowers} selected={phase === 'p2' ? null : bluePick} revealed={phase === 'ready' || phase === 'clash' || phase === 'result' || phase === 'finished'} active={phase === 'p1'} locked={bluePick !== null || phase === 'clash' || phase === 'result' || phase === 'finished'} onChoose={i => choose('blue', i)} />
         <div className="gc-middle-action">
-          <div className="gc-lock-state">{bluePick === null ? 'P1 WAITING' : 'P1 LOCKED'}<span>{redPick === null ? 'P2 WAITING' : 'P2 LOCKED'}</span></div>
+          <div className="gc-lock-state">{bluePick === null ? 'P1 CHOOSE' : 'P1 LOCKED'}<span>{redPick === null ? 'P2 CHOOSE' : 'P2 LOCKED'}</span></div>
           {phase === 'ready' && <button className="gc-primary gc-reveal" onClick={resolve}>ATTACK! <Swords size={18}/></button>}
-          {phase !== 'ready' && <div className="gc-vs-mini">VS</div>}
+          {phase === 'clash' && <div className="gc-vs-mini gc-live-status">CLASH</div>}
+          {(phase === 'p1' || phase === 'p2' || phase === 'result' || phase === 'finished') && <div className="gc-vs-mini">VS</div>}
         </div>
-        <PowerPicker side="red" powers={redPowers} selected={phase === 'ready' ? redPick : phase === 'p2' ? redPick : null} revealed={phase === 'ready'} active={phase === 'p2'} locked={redPick !== null} onChoose={i => choose('red', i)} />
-      </div>}
-      {(phase === 'clash' || phase === 'result' || phase === 'finished') && <div className="gc-reveal-row">
-        <div className="gc-revealed blue"><small>{blueDisplayName}'S POWER</small><strong><em>{bluePower?.icon}</em>{bluePower?.name}</strong></div>
-        <div className="gc-revealed red"><small>{redDisplayName}'S POWER</small><strong><em>{redPower?.icon}</em>{redPower?.name}</strong></div>
-      </div>}
+        <PowerPicker side="red" powers={redPowers} selected={phase === 'p1' ? null : redPick} revealed={phase === 'ready' || phase === 'clash' || phase === 'result' || phase === 'finished'} active={phase === 'p2'} locked={redPick !== null || phase === 'clash' || phase === 'result' || phase === 'finished'} onChoose={i => choose('red', i)} />
+      </div>
       {phase === 'result' && <button className="gc-primary gc-next" onClick={nextRound}>NEXT ROUND <Zap size={18}/></button>}
       {phase === 'finished' && <div className="gc-finish-actions"><button className="gc-primary" onClick={reset}><RotateCcw size={17}/> NEXT FIGHT · EDIT PLAYERS</button></div>}
       <div className="gc-footnote">POWER SLOTS SHUFFLE EVERY ROUND <span>·</span> NO KEYBOARD REQUIRED <span>·</span> FIRST TO ZERO HEALTH LOSES</div>
@@ -285,7 +294,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
   useEffect(() => {
     const canvas = canvasRef.current
     const stage = canvas?.parentElement
-    const ctx = canvas?.getContext('2d', { alpha: true })
+    const ctx = canvas?.getContext('2d', { alpha: true, desynchronized: true })
     if (!canvas || !stage || !ctx) return
     let raf = 0
     let width = 0
@@ -303,6 +312,10 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       'MEND AURA': 'mend-aura', 'STORM LANCE': 'lightning', 'INFERNO COMET': 'phoenix',
       'GLACIER SPEAR': 'ice', 'ECLIPSE NOVA': 'shadow', 'SUNFALL RAY': 'solar',
       'CYCLONE EDGE': 'wind', 'TIDAL SURGE': 'water-vortex', 'AEGIS REFLECT': 'guardian-aegis',
+      'STARFALL RIFT': 'solar', 'THUNDER GOD SPEAR': 'lightning', 'GLACIAL PRISON': 'frost-nova',
+      'INFERNO DRAGON': 'phoenix', 'ASTRAL CHAIN': 'shadow', 'GALE PHANTOM': 'wind',
+      'TIDAL MAELSTROM': 'water-vortex', 'PRISM BARRIER': 'guardian-aegis', 'NOVA PULSE': 'plasma',
+      'METEOR RAIN': 'impact', 'CELESTIAL MEND': 'mend-aura', 'VOID STEP': 'speed',
     }
     const powerImages: Record<string, HTMLImageElement> = {}
     const textureCache: Record<string, HTMLImageElement> = {}
@@ -344,7 +357,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
     }
     const addBurst = (x:number,y:number,color:string,count:number,force:number) => {
       const hue = (() => { const c=hexRgb(color); return c.r>c.g && c.r>c.b ? 20 : c.b>c.r ? 205 : 145 })()
-      const safeCount = Math.min(count, Math.max(0, 280 - particles.length))
+      const safeCount = Math.min(count, Math.max(0, 160 - particles.length))
       for(let i=0;i<safeCount;i++){
         const angle=rand(0,Math.PI*2), speed=rand(force*.25,force)
         particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:rand(.35,.9),max:.9,size:rand(1.2,4.5),hue,alpha:rand(.5,1)})
@@ -717,10 +730,11 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       const dt=Math.min(.04,(now-last)/1000);last=now
       const elapsed=(now-start)/1000
       ctx.clearRect(0,0,width,height)
-      const blueStart={x:width*.305,y:height*.39}
-      const redStart={x:width*.695,y:height*.39}
-      // The winning attack travels all the way to the opponent's body, not to a decorative centre point.
-      const target=impactSide==='blue'?{x:width*.285,y:height*.57}:{x:width*.715,y:height*.57}
+      const blueStart={x:width*.235,y:height*.43}
+      const redStart={x:width*.765,y:height*.43}
+      // Launch from each fighter's hand line and land on the opponent's torso,
+      // not the arena midpoint. This keeps the action readable at every viewport.
+      const target=impactSide==='blue'?{x:width*.205,y:height*.57}:{x:width*.795,y:height*.57}
       const source=winningSide==='blue'?blueStart:redStart
       const losingSource=winningSide==='blue'?redStart:blueStart
       const winnerPower=winningSide==='blue'?bluePower:redPower
@@ -781,8 +795,11 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
 
       // The final strike blooms on the opponent's body with a readable hit flash and debris.
       if(elapsed>=2.55 && elapsed<3.3) {
+        // Keep the move's recognizable silhouette visible on the actual body hit.
+        const hitDir = winningSide === 'blue' ? 1 : -1
+        drawProceduralPower(target.x,target.y,hitDir,winnerPower,elapsed,2.35,Math.max(.2,1-impact*.55))
         drawImpact(target.x,target.y,winnerPower,impact)
-        if (Math.random() < .95) addBurst(target.x+rand(-12,12),target.y+rand(-12,12),winnerPower.color,7,175)
+        if (Math.random() < .95) addBurst(target.x+rand(-12,12),target.y+rand(-12,12),winnerPower.color,4,175)
       }
 
       // Procedural sparks and motes: each particle has its own velocity, drag and lifetime.

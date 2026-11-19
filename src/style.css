@@ -1502,3 +1502,106 @@ body{background:var(--bg);color:var(--text)}
 .gc-stage.is-clashing.beat-collision .gc-fighter.red {animation:arena-red-brace-art .42s ease-in-out both!important}
 @keyframes arena-red-charge-art {0%,100%{transform:translateX(0) scale(1)}55%{transform:translateX(0) translateY(4px) scale(.985)}}
 @keyframes arena-red-brace-art {0%{transform:translateX(-98px)}30%{transform:translateX(-88px) rotate(2deg)}60%{transform:translateX(-104px) rotate(-2deg)}100%{transform:translateX(-98px)}}
+
+
+/* PREMIUM ARENA POLISH — persistent mirrored power rails, sharp fighters, clear hit staging */
+.gc-game{max-width:1540px!important;gap:10px!important}
+.gc-top-hud{gap:14px!important}
+.gc-hud-side{background:linear-gradient(180deg,#102c53f2,#071a36f5)!important;border:1px solid #b8d7f0!important;box-shadow:inset 0 1px 0 #ffffff35,0 7px 22px #071b3622!important}
+.gc-hud-side.red{border-color:#e7a79a!important;background:linear-gradient(180deg,#4a1c2af2,#241222f5)!important}
+.gc-round{padding:5px 10px;border:1px solid #d5b56d;border-radius:12px;background:linear-gradient(180deg,#18375b,#0a1b34)!important;color:#fff!important;box-shadow:0 4px 16px #071b3633}
+.gc-round small{color:#d9c38e!important}
+.gc-round strong{color:#fff!important}
+.gc-stage{height:clamp(350px,42vw,520px)!important;border:2px solid #b89b61!important;box-shadow:0 12px 34px #092b4d30,inset 0 0 0 1px #ffffff80!important;background:#0a1c35!important}
+.gc-arena-backdrop img{filter:saturate(1.08) contrast(1.035)!important}
+.gc-fighter{z-index:8!important;width:min(36%,460px)!important;height:94%!important;bottom:10px!important;opacity:1!important;visibility:visible!important;filter:drop-shadow(0 13px 12px #071c3150)!important}
+.gc-fighter.blue{left:0!important}
+.gc-fighter.red{right:0!important}
+.gc-fighter .gc-pose-sprite{height:100%!important;width:auto!important;aspect-ratio:1/1!important;image-rendering:auto!important;filter:drop-shadow(0 7px 8px #092b4b38)!important;backface-visibility:hidden!important;transform:translate3d(-50%,0,0)!important}
+.gc-fighter.red .gc-pose-sprite{transform:translate3d(-50%,0,0) scaleX(-1)!important}
+.gc-live-power-canvas{z-index:6!important;mix-blend-mode:screen!important;opacity:1!important}
+.gc-fighter{isolation:isolate}
+.gc-hit-spark,.gc-breakthrough,.gc-target-burst{z-index:9!important}
+.gc-damage-number{z-index:12!important}
+.gc-pick-panels-persistent{grid-template-columns:minmax(0,1fr) 118px minmax(0,1fr)!important;align-items:stretch!important;gap:10px!important}
+.gc-picker{opacity:1!important;padding:10px 11px!important;border:1px solid #9fc7e7!important;background:linear-gradient(180deg,#102b50,#071a34)!important;box-shadow:inset 0 1px 0 #ffffff2b,0 8px 20px #0a29451c!important}
+.gc-picker.red{border-color:#d99183!important;background:linear-gradient(180deg,#4a1d2b,#211327)!important}
+.gc-picker.blue.is-active{border-color:#69d4ff!important;box-shadow:0 0 0 2px #48bfff55,0 0 24px #2ca9ef2a!important}
+.gc-picker.red.is-active{border-color:#ff9d83!important;box-shadow:0 0 0 2px #ff7c5b55,0 0 24px #ff79552a!important}
+.gc-picker-head{margin-bottom:8px!important}
+.gc-picker-head strong,.gc-picker-head span{color:#d8eaff!important}
+.gc-picker.red .gc-picker-head strong,.gc-picker.red .gc-picker-head span{color:#ffe0d8!important}
+.gc-power-grid{gap:7px!important}
+.gc-power-grid button{height:72px!important;border:1px solid #7fb8e7!important;border-top:4px solid #3da7ec!important;border-radius:11px!important;background:linear-gradient(180deg,#164779,#092445)!important;color:#fff!important;box-shadow:inset 0 1px 0 #ffffff35,0 5px 12px #0003!important}
+.gc-picker.red .gc-power-grid button{border-color:#e39a8b!important;border-top-color:#ff654e!important;background:linear-gradient(180deg,#672b39,#321827)!important}
+.gc-power-grid button>span.gc-power-number{font-size:clamp(29px,3vw,42px)!important;font-weight:1000!important;line-height:1!important;color:#fff!important;text-shadow:0 2px 8px #0007!important}
+.gc-power-grid button.chosen{transform:translateY(-2px)!important;border:2px solid #9deaff!important;background:linear-gradient(180deg,#1678b7,#0b3762)!important;box-shadow:0 0 0 2px #6edbff66,0 0 20px #50caff77,inset 0 1px 0 #fff8!important}
+.gc-picker.red .gc-power-grid button.chosen{border-color:#ffd0a4!important;background:linear-gradient(180deg,#c34d3d,#682337)!important;box-shadow:0 0 0 2px #ff987466,0 0 20px #ff735977!important}
+.gc-selected-power{min-height:34px!important;margin-top:7px!important;padding:5px 8px!important;border:1px solid #8ed9ff!important;background:linear-gradient(90deg,#d9f3ff,#f4fbff)!important;color:#103f67!important;box-shadow:0 3px 12px #0b2b471f!important}
+.gc-picker.red .gc-selected-power{border-color:#ffb49f!important;background:linear-gradient(90deg,#ffe1d8,#fff8f5)!important;color:#842c2a!important}
+.gc-selected-power b{font-size:18px!important}
+.gc-selected-power strong{font-size:clamp(9px,1vw,12px)!important;letter-spacing:.08em!important}
+.gc-middle-action{gap:8px!important}
+.gc-lock-state{color:#d6e7f8!important;font-weight:900!important}
+.gc-vs-mini{color:#f4d58b!important;text-shadow:0 2px 8px #0008!important}
+.gc-live-status{padding:7px 13px;border:1px solid #e4c47a;border-radius:9px;background:linear-gradient(180deg,#7c5522,#342044);font-size:13px!important}
+.gc-primary.gc-reveal{background:linear-gradient(135deg,#f3d68c,#bd7e2e 50%,#f6df9e)!important;color:#17243a!important;border:1px solid #fff0b4!important;box-shadow:0 6px 18px #a56c343d!important}
+.gc-turn-status{color:#315d7e!important;font-weight:1000!important;letter-spacing:.16em!important}
+.gc-footnote{color:#597b97!important}
+.gc-picker.is-locked{opacity:1!important}
+.gc-stage.is-clashing.beat-charge .gc-fighter{animation:arena-ready-breath .5s ease-in-out both!important}
+.gc-stage.is-clashing.beat-windup.dominant-blue .gc-fighter.blue{animation:arena-blue-windup-clean .5s cubic-bezier(.2,.8,.2,1) both!important}
+.gc-stage.is-clashing.beat-windup.dominant-red .gc-fighter.red{animation:arena-red-windup-clean .5s cubic-bezier(.2,.8,.2,1) both!important}
+.gc-stage.is-clashing.beat-release.dominant-blue .gc-fighter.blue{animation:arena-blue-release-clean .9s cubic-bezier(.15,.82,.2,1) both!important}
+.gc-stage.is-clashing.beat-release.dominant-red .gc-fighter.red{animation:arena-red-release-clean .9s cubic-bezier(.15,.82,.2,1) both!important}
+.gc-stage.is-clashing.beat-impact .gc-fighter.blue.blue-hurt{animation:arena-blue-impact-clean .72s cubic-bezier(.12,.78,.18,1) both!important}
+.gc-stage.is-clashing.beat-impact .gc-fighter.red.red-hurt{animation:arena-red-impact-clean .72s cubic-bezier(.12,.78,.18,1) both!important}
+.gc-stage.is-clashing.beat-recovery .gc-fighter{animation:arena-recover-clean .5s ease-out both!important}
+@keyframes arena-ready-breath{0%,100%{scale:1}50%{scale:1.018}}
+@keyframes arena-blue-windup-clean{0%{transform:translateX(0) scale(1)}65%{transform:translateX(-12px) scale(.98)}100%{transform:translateX(0) scale(1.02)}}
+@keyframes arena-red-windup-clean{0%{transform:none}65%{transform:translateX(12px) scale(.98)}100%{transform:translateX(0) scale(1.02)}}
+@keyframes arena-blue-release-clean{0%{transform:translateX(0) scale(1)}42%{transform:translateX(28px) scale(1.04)}100%{transform:translateX(36px) scale(1.02)}}
+@keyframes arena-red-release-clean{0%{transform:none}42%{transform:translateX(-28px) scale(1.04)}100%{transform:translateX(-36px) scale(1.02)}}
+@keyframes arena-blue-impact-clean{0%{transform:translateX(0) rotate(0)}22%{transform:translate(-26px,4px) rotate(-7deg)}52%{transform:translate(-16px,0) rotate(4deg)}100%{transform:translate(0,0) rotate(0)}}
+@keyframes arena-red-impact-clean{0%{transform:none}22%{transform:translate(26px,4px) rotate(7deg)}52%{transform:translate(16px,0) rotate(-4deg)}100%{transform:none}}
+@keyframes arena-recover-clean{0%{filter:brightness(1.2)}100%{filter:brightness(1)}}
+@media(max-width:900px){
+ .gc-pick-panels-persistent{grid-template-columns:minmax(0,1fr) 72px minmax(0,1fr)!important;gap:6px!important}
+ .gc-picker{padding:7px!important}
+ .gc-power-grid{gap:4px!important}
+ .gc-power-grid button{height:58px!important}
+ .gc-selected-power strong{font-size:8px!important}
+ .gc-fighter{width:42%!important;height:88%!important}
+}
+
+
+/* Full-screen premium frame and persistent bottom controls */
+.gsh-screen.gsh-real-game{background:radial-gradient(ellipse at 50% -10%,#214c79 0,#0b2443 48%,#06172d 100%)!important;color:#f5f8ff!important;padding:12px 18px 16px!important}
+.gsh-back-row{background:linear-gradient(180deg,#102c50,#071a34)!important;border:1px solid #b89b61!important;border-radius:13px!important;box-shadow:0 7px 20px #03162a55!important;color:#f5e6c0!important;padding:9px 13px!important}
+.gsh-back-row button{background:linear-gradient(180deg,#1d4770,#0a2748)!important;border:1px solid #7db9e8!important;color:#fff!important}
+.gsh-brand{color:#f6d58b!important;text-shadow:0 2px 8px #0008!important}
+.gsh-round-tag{background:linear-gradient(180deg,#193a60,#0b1d38)!important;border:1px solid #b89b61!important;color:#f5e6c0!important}
+.gc-pick-panels-persistent .gc-picker{min-height:112px!important}
+.gc-pick-panels-persistent .gc-picker-head span{font-size:8px!important}
+.gc-pick-panels-persistent .gc-power-grid button:disabled{opacity:1!important;filter:none!important}
+.gc-pick-panels-persistent .gc-power-grid button:not(.chosen){opacity:.94!important}
+.gc-pick-panels-persistent .gc-picker.blue .gc-power-grid button{border-color:#5db8ee!important}
+.gc-pick-panels-persistent .gc-picker.red .gc-power-grid button{border-color:#f58b78!important}
+.gc-pick-panels-persistent .gc-picker.blue .gc-selected-power{display:flex!important}
+.gc-pick-panels-persistent .gc-picker.red .gc-selected-power{display:flex!important}
+@media(max-width:760px){
+ .gsh-screen.gsh-real-game{padding:8px!important}
+ .gc-stage{height:clamp(300px,55vw,420px)!important}
+ .gc-pick-panels-persistent{grid-template-columns:minmax(0,1fr) 54px minmax(0,1fr)!important}
+ .gc-picker-head span{display:none!important}
+ .gc-power-grid button{height:50px!important}
+ .gc-power-grid button>span.gc-power-number{font-size:25px!important}
+ .gc-selected-power{gap:3px!important;padding:3px!important}
+ .gc-selected-power strong{font-size:7px!important}
+}
+
+/* Hit marker sits on the actual fighter lane, not the centre of the arena. */
+.gc-target-burst.blue{left:12%!important;right:auto!important;top:54%!important}
+.gc-target-burst.red{right:12%!important;left:auto!important;top:54%!important}
+.gc-hit-spark{top:54%!important}
+.gc-stage.is-clashing:after{display:none!important}
