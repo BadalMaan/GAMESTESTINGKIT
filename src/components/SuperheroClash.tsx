@@ -392,11 +392,68 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       ctx.globalCompositeOperation='lighter'
       ctx.shadowColor=power.color;ctx.shadowBlur=24*scale
       if(power.name==='TIDAL DRAGON'){
-        // Stylized water-dragon head with horns, jaw, whiskers and flowing mane.
-        ctx.fillStyle='rgba(215,250,255,.9)';ctx.beginPath();ctx.moveTo(-r*1.6,-r*.45);ctx.quadraticCurveTo(-r*.2,-r*1.2,r*1.75,-r*.18);ctx.lineTo(r*2.1,0);ctx.lineTo(r*1.25,r*.34);ctx.quadraticCurveTo(0,r*1.15,-r*1.6,r*.45);ctx.closePath();ctx.fill()
-        ctx.fillStyle=rgba(power.color,.95);ctx.beginPath();ctx.moveTo(-r*.8,-r*.45);ctx.lineTo(-r*1.45,-r*1.35);ctx.lineTo(-r*.1,-r*.65);ctx.lineTo(r*.15,-r*1.45);ctx.lineTo(r*.65,-r*.42);ctx.fill()
-        ctx.fillStyle='#164b72';ctx.beginPath();ctx.arc(r*.95,-r*.2,r*.09,0,Math.PI*2);ctx.fill()
-        ctx.strokeStyle='rgba(235,255,255,.9)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-r*.7,r*.3);ctx.quadraticCurveTo(-r*1.6,r*.85,-r*2,r*.35);ctx.moveTo(-r*.5,-r*.2);ctx.quadraticCurveTo(-r*1.5,-r*.9,-r*1.9,-r*.45);ctx.stroke()
+        // Large, unmistakable water-dragon projectile: long serpentine body,
+        // swept horns, jaw, eye, whiskers and layered water mane.
+        ctx.save()
+        ctx.lineCap='round';ctx.lineJoin='round'
+        const wave=Math.sin(t*5.2)*r*.16
+        // Long coiling body behind the head
+        for(let k=0;k<5;k++){
+          const yy=(k-2)*r*.22
+          ctx.strokeStyle=rgba(k%2?'#eaffff':'#2aaee8',.62-k*.07)
+          ctx.lineWidth=r*(.20-k*.018)
+          ctx.beginPath()
+          ctx.moveTo(-r*3.9,yy+wave)
+          ctx.bezierCurveTo(-r*2.9,yy-r*1.15+Math.sin(t*3+k)*r*.22,-r*1.7,yy+r*1.15,r*.05,yy-r*.18)
+          ctx.stroke()
+        }
+        // Dragon head silhouette facing travel direction
+        const head=ctx.createLinearGradient(-r*1.4,-r*.8,r*2.2,r*.5)
+        head.addColorStop(0,'#187dbb');head.addColorStop(.48,'#8cecff');head.addColorStop(1,'#f2ffff')
+        ctx.fillStyle=head;ctx.beginPath()
+        ctx.moveTo(-r*1.65,-r*.45);ctx.quadraticCurveTo(-r*.8,-r*1.35,r*.15,-r*.82)
+        ctx.lineTo(r*.8,-r*1.05);ctx.lineTo(r*1.45,-r*.62)
+        ctx.lineTo(r*2.25,-r*.12);ctx.lineTo(r*1.55,r*.16)
+        ctx.quadraticCurveTo(r*.85,r*.92,-r*.05,r*.65)
+        ctx.lineTo(-r*.85,r*.95);ctx.lineTo(-r*1.45,r*.42);ctx.closePath();ctx.fill()
+        // Horns, crest and fins
+        ctx.fillStyle='#d9fbff'
+        ctx.beginPath();ctx.moveTo(-r*.75,-r*.48);ctx.lineTo(-r*1.45,-r*1.62);ctx.lineTo(-r*.15,-r*.9);ctx.closePath();ctx.fill()
+        ctx.beginPath();ctx.moveTo(r*.05,-r*.65);ctx.lineTo(r*.45,-r*1.55);ctx.lineTo(r*.72,-r*.48);ctx.closePath();ctx.fill()
+        ctx.fillStyle='#36b9ec'
+        for(let k=0;k<4;k++){ctx.beginPath();ctx.moveTo(-r*(1.0-k*.15),r*.22+k*r*.12);ctx.lineTo(-r*(1.75-k*.12),r*(.72+k*.18));ctx.lineTo(-r*(.45-k*.08),r*(.48+k*.12));ctx.closePath();ctx.fill()}
+        // Eye, nostril and jaw highlight
+        ctx.fillStyle='#073c69';ctx.beginPath();ctx.arc(r*.95,-r*.36,r*.105,0,Math.PI*2);ctx.fill()
+        ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(r*.98,-r*.39,r*.035,0,Math.PI*2);ctx.fill()
+        ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=Math.max(2,r*.055)
+        ctx.beginPath();ctx.moveTo(r*.55,r*.24);ctx.quadraticCurveTo(r*1.25,r*.58,r*1.92,r*.18)
+        ctx.moveTo(-r*.55,r*.28);ctx.quadraticCurveTo(-r*1.65,r*1.05,-r*2.55,r*.55)
+        ctx.moveTo(-r*.5,-r*.25);ctx.quadraticCurveTo(-r*1.55,-r*1.0,-r*2.35,-r*.65);ctx.stroke()
+        // Scale glints
+        for(let k=0;k<8;k++){const xx=-r*1.1+k*r*.25;ctx.fillStyle='rgba(255,255,255,.52)';ctx.beginPath();ctx.arc(xx,Math.sin(k*1.8+t*3)*r*.2,r*.045,0,Math.PI*2);ctx.fill()}
+        ctx.restore()
+      } else if(power.name==='METEOR KICK'){
+        // A flaming meteor-shaped kick projectile; deliberately not an arrow/beam.
+        ctx.save()
+        ctx.lineCap='round'
+        for(let k=0;k<9;k++){
+          const a=(k/9)*Math.PI*2+t*1.7
+          const len=r*(1.55+(k%3)*.28)
+          ctx.strokeStyle=rgba(k%2?'#ffb15e':'#ff4a20',.78)
+          ctx.lineWidth=r*(.12+(k%2)*.035)
+          ctx.beginPath()
+          ctx.moveTo(-r*.35+Math.cos(a)*r*.25,Math.sin(a)*r*.25)
+          ctx.quadraticCurveTo(-len*.65,Math.sin(a)*len*.9, -len,Math.cos(a)*len*.45)
+          ctx.stroke()
+        }
+        const meteor=ctx.createRadialGradient(-r*.2,-r*.15,r*.08,0,0,r*1.35)
+        meteor.addColorStop(0,'#ffffff');meteor.addColorStop(.18,'#fff4c5')
+        meteor.addColorStop(.43,'#ffb044');meteor.addColorStop(.72,'#ff5425');meteor.addColorStop(1,'rgba(255,65,20,0)')
+        ctx.fillStyle=meteor;ctx.beginPath();ctx.ellipse(0,0,r*1.2,r*.72,-.12,0,Math.PI*2);ctx.fill()
+        ctx.fillStyle='#fff8dc';ctx.beginPath();ctx.ellipse(r*.15,-r*.04,r*.63,r*.29,-.12,0,Math.PI*2);ctx.fill()
+        // Chunky burning fragments orbit the meteor
+        for(let k=0;k<7;k++){const a=t*2.3+k*Math.PI*2/7;ctx.fillStyle=k%2?'#ff6b2e':'#ffe6a0';ctx.beginPath();ctx.arc(Math.cos(a)*r*(1.1+(k%3)*.16),Math.sin(a)*r*.72, r*(.07+(k%2)*.035),0,Math.PI*2);ctx.fill()}
+        ctx.restore()
       } else if(power.name==='PHOENIX ROAR'){
         for(let k=0;k<5;k++){const yy=(k-2)*r*.34;ctx.fillStyle=rgba(k%2?'#ff7a26':'#ffe8a0',.82);ctx.beginPath();ctx.moveTo(-r*1.2,yy);ctx.quadraticCurveTo(-r*.2,yy-r*(1.2+k*.08),r*1.1,yy-r*.15);ctx.quadraticCurveTo(r*.3,yy+r*.65,-r*1.2,yy);ctx.fill()}
         ctx.fillStyle='#fff5d4';ctx.beginPath();ctx.ellipse(r*.45,0,r*.75,r*.23,0,0,Math.PI*2);ctx.fill()
@@ -488,7 +545,36 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
     }
     const drawPowerWake = (x1:number,y1:number,x2:number,y2:number,power:Power,t:number) => {
       const dx=x2-x1,dy=y2-y1,dir=dx>=0?1:-1
-      if(power.type==='FIRE'){
+      if(power.name==='TIDAL DRAGON'){
+        // Broad, readable water wake with multiple rolling ribbons and bubbles.
+        ctx.save();ctx.globalCompositeOperation='screen';ctx.lineCap='round'
+        for(let k=0;k<7;k++){
+          const offset=(k-3)*7
+          ctx.strokeStyle=rgba(k%2?'#e8fdff':'#39bff2',.68-k*.055)
+          ctx.lineWidth=5+(k%3)*3
+          ctx.shadowColor='#53d7ff';ctx.shadowBlur=13
+          ctx.beginPath();ctx.moveTo(x1,y1+offset)
+          ctx.bezierCurveTo(x1+dx*.24,y1+dy*.24+Math.sin(t*5+k)*24+offset,
+            x1+dx*.72,y1+dy*.72+Math.cos(t*4+k)*22-offset*.5,x2,y2+offset*.35)
+          ctx.stroke()
+        }
+        for(let k=0;k<9;k++){const q=(k+1)/10;const bx=x1+dx*q,by=y1+dy*q+Math.sin(t*4+k)*15;ctx.fillStyle='rgba(225,251,255,.8)';ctx.beginPath();ctx.arc(bx,by,2+(k%3),0,Math.PI*2);ctx.fill()}
+        ctx.restore()
+      } else if(power.name==='METEOR KICK'){
+        // Fiery comet wake with turbulent tongues, sparks and a smoky core.
+        ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round'
+        for(let k=0;k<8;k++){
+          const off=(k-3.5)*5, wave=Math.sin(t*12+k*1.6)*17
+          ctx.strokeStyle=rgba(k%2?'#ffe8ad':'#ff5727',.78-k*.055)
+          ctx.lineWidth=5+(k%3)*3;ctx.shadowColor='#ff5a20';ctx.shadowBlur=18
+          ctx.beginPath();ctx.moveTo(x1,y1+off)
+          ctx.bezierCurveTo(x1+dx*.28,y1+dy*.28+wave+off,
+            x1+dx*.72,y1+dy*.72-wave*.6+off*.5,x2,y2+off*.25)
+          ctx.stroke()
+        }
+        for(let k=0;k<4;k++){const q=(k+1)/5;addBurst(x1+dx*q,y1+dy*q+rand(-9,9),'#ff8a32',2,45)}
+        ctx.restore()
+      } else if(power.type==='FIRE'){
         // Ember drift and heat shimmer trail; the detailed flame texture is the projectile body.
         for(let k=0;k<4;k++){
           const q=(k+1)/5, x=x1+dx*q, y=y1+dy*q+Math.sin(t*10+k*1.7)*9
