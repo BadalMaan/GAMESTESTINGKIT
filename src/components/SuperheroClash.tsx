@@ -9,10 +9,10 @@ type Side = 'blue' | 'red'
 type Power = { name: string; type: string; icon: string; strength: number; color: string; note: string }
 
 const blueHeroes = [
-  { name: 'NOVA', title: 'THE LIGHTNING STRIKER', image: '/images/fighters/blue-uhd.png', accent: '#79dcff', bonus: 3, passive: 'ENERGY CONTROL · +3 POWER' },
+  { name: 'NOVA', title: 'THE LIGHTNING STRIKER', image: '/images/fighters/blue-idle.png', accent: '#79dcff', bonus: 3, passive: 'ENERGY CONTROL · +3 POWER' },
 ]
 const redHeroes = [
-  { name: 'EMBER', title: 'THE FIRE CHAMPION', image: '/images/fighters/red-uhd.png', accent: '#ffb19a', bonus: 4, passive: 'FLAME MASTERY · +4 POWER' },
+  { name: 'EMBER', title: 'THE FIRE CHAMPION', image: '/images/fighters/red-idle.png', accent: '#ffb19a', bonus: 4, passive: 'FLAME MASTERY · +4 POWER' },
 ]
 const powerPool: Power[] = [
   { name: 'THUNDER SPEAR', type: 'LIGHTNING', icon: 'ϟ', strength: 78, color: '#55c8ff', note: 'A focused bolt that pierces the arena.' },
@@ -76,17 +76,15 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
     return 'cast'
   }
   const fighterImage = (side: Side, power: Power | null, reaction: string, isClashing: boolean) => {
-    // High-resolution hero artwork is used for the persistent fighter layer.
-    // The live combat canvas supplies attack timing, lunge, hit reactions and VFX.
-    // This avoids enlarging the old 300px pose thumbnails in the full arena.
-    if (reaction === 'fall' || reaction === 'hurt' || reaction === 'stumble') {
-      return `/images/fighters/${side}-uhd.png`
-    }
+    // One full-body action sprite per fighter. The sprite keeps the same frame
+    // size; elemental effects are layered from the hands as separate effects.
+    if (reaction === 'fall') return `/images/fighters/${side}-down.png`
+    if (reaction === 'hurt' || reaction === 'stumble') return `/images/fighters/${side}-hurt.png`
     if (isClashing && power && !['SHIELD', 'HEAL'].includes(power.type)) {
       const action = ['IMPACT', 'SPEED'].includes(power.type) ? 'kick' : 'punch'
       return `/images/fighters/${side}-${action}.png`
     }
-    return `/images/fighters/${side}-uhd.png`
+    return `/images/fighters/${side}-idle.png`
   }
   const begin = () => {
     clearCombatTimers(); setBlueHealth(100); setRedHealth(100); setRound(1); setWinner(null); setDominantSide(null); setImpactDamage(0); setComboLabel(''); setComboHits(0); setClashBeat('charge')
@@ -324,8 +322,8 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
     // decoded once per clash and reused; the render loop never creates Images.
     const fighterSprites: Record<string, HTMLImageElement> = {}
     const fighterFiles = [
-      'blue-uhd','blue-punch','blue-kick',
-      'red-uhd','red-punch','red-kick',
+      'blue-idle','blue-punch','blue-kick','blue-hurt','blue-down',
+      'red-idle','red-punch','red-kick','red-hurt','red-down',
       'blue-water-cast','blue-lightning-cast','blue-shield-cast',
       'red-fire-cast','red-solar-cast','red-shield-cast',
     ]
@@ -336,7 +334,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
     // All 16 transparent VFX textures are preloaded at arena entry and reused by this renderer.
     const resize = () => {
       const rect = stage.getBoundingClientRect()
-      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
       width = Math.max(1, rect.width)
       height = Math.max(1, rect.height)
       canvas.width = Math.round(width * dpr)
@@ -537,7 +535,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
       const image = powerSprites[powerArtworkKey(power)]
       if (!image || !image.complete || !image.naturalWidth) return
       const base = Math.max(26, width * .034) * scale
-      const drawW = base * 5.1
+      const drawW = base * 4.35
       const drawH = drawW * (image.naturalHeight / image.naturalWidth)
       const pulse = 1 + Math.sin(t * 8.5) * .035
       ctx.save(); ctx.translate(x,y); ctx.scale(dir * pulse,pulse)
@@ -576,9 +574,8 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
         : { FIRE:'red-fire-cast', SOLAR:'red-solar-cast', SHIELD:'red-shield-cast' }
       const castSprite = castMap[ownPower.type]
       const spriteKey = (beatName === 'windup' || beatName === 'release' || beatName === 'breakthrough') && castSprite
-        ? castSprite
-        : (pose === 'hurt' ? `${prefix}-uhd` : (pose === 'idle' ? `${prefix}-uhd` : `${prefix}-${pose}`))
-      const sprite = fighterSprites[spriteKey] || fighterSprites[`${prefix}-uhd`]
+        ? castSprite : `${prefix}-${pose}`
+      const sprite = fighterSprites[spriteKey] || fighterSprites[`${prefix}-idle`]
       if (!sprite || !sprite.complete || !sprite.naturalWidth) return
 
       const bob = beatName === 'charge' ? Math.sin(t * 8 + (side === 'red' ? 1.2 : 0)) * 3.2 : Math.sin(t * 4.8) * 1.4
@@ -586,7 +583,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, b
         : (beatName === 'release' || beatName === 'breakthrough') ? (isWinner ? (side === 'blue' ? .055 : -.055) : 0)
         : beatName === 'impact' && isVictim ? (side === 'blue' ? -.16 : .16) : 0
       const lunge = (beatName === 'release' || beatName === 'breakthrough') && isWinner ? (side === 'blue' ? 1 : -1) * width * .012 * Math.sin(t * 5) : 0
-      const spriteH = Math.min(height * .93, width * .285)
+      const spriteH = Math.min(height * .88, width * .245)
       const spriteW = spriteH * (sprite.naturalWidth / sprite.naturalHeight)
 
       ctx.save()

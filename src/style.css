@@ -1482,44 +1482,17 @@ body{background:var(--bg);color:var(--text)}
 .gc-live-power-canvas { image-rendering: auto !important; }
 
 
-/* UHD fighter artwork pass: use the newly supplied 1200px hero cutouts at native detail. */
-.gc-fighter{
-  width:min(42%,460px)!important;
-  height:94%!important;
-  bottom:12px!important;
-  filter:drop-shadow(0 18px 20px rgba(4,14,30,.34))!important;
+/* Standalone Global Super Hero arena embedded after the dashboard poster */
+.gpa-arena-frame {
+  display: block;
+  width: 100%;
+  height: 100dvh;
+  min-height: 520px;
+  border: 0;
+  background: #d9eafb;
 }
-.gc-fighter.blue{left:3%!important}
-.gc-fighter.red{right:3%!important}
-.gc-fighter img{
-  display:block!important;
-  width:100%!important;
-  height:100%!important;
-  max-width:none!important;
-  max-height:none!important;
-  object-fit:contain!important;
-  object-position:center bottom!important;
-  image-rendering:auto!important;
-  backface-visibility:hidden;
-  transform:translateZ(0);
-}
-.gc-fighter .gc-base-pose{opacity:1}
-.gc-result-banner{
-  border:1px solid rgba(255,214,133,.88)!important;
-  border-radius:14px!important;
-  background:linear-gradient(135deg,rgba(5,25,52,.97),rgba(16,55,91,.94))!important;
-  box-shadow:0 0 0 2px rgba(255,255,255,.14),0 12px 34px rgba(0,0,0,.32),0 0 28px rgba(99,183,255,.18)!important;
-  padding:12px 28px!important;
-}
-.gc-result-banner strong{
-  color:#fff!important;
-  font-size:clamp(15px,1.8vw,21px)!important;
-  letter-spacing:.14em!important;
-  text-shadow:0 2px 12px rgba(90,180,255,.45);
-}
-.gc-result-banner span{color:#f4d99a!important}
-@media(max-width:760px){
-  .gc-fighter{width:44%!important;height:88%!important;bottom:8px!important}
-  .gc-fighter.blue{left:0!important}
-  .gc-fighter.red{right:0!important}
+.app-shell.arena-mode .gpa-arena-frame {
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100dvh;
 }

@@ -96,3 +96,9 @@ Global Super Hero is a one-screen, number-first anime power-clash game. It prese
 ## Artwork-first fighting engine update
 
 The live React arena uses the supplied full-body fighter pose artwork and individual transparent elemental power artwork during clashes. See [docs/ARTWORK_ENGINE_REBUILD.md](docs/ARTWORK_ENGINE_REBUILD.md) for the implementation scope, asset list, verification and deployment notes. The optional standalone arena is available at `/arena.html`; the Netlify homepage itself is rendered by the React `SuperheroClash` component.
+
+
+## Dashboard poster → arena interface flow
+
+The Dashboard's **GLOBAL SUPER HERO** poster remains the first entry point. Selecting it now opens the standalone `public/arena.html` battle interface inside the existing website shell. The arena's **EXIT ARENA** control sends the player back to the Dashboard without leaving the site. The arena HTML and its image assets are served from the existing `public/` directory; no separate deployment is required.
+
