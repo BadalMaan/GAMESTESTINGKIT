@@ -1496,3 +1496,20 @@ body{background:var(--bg);color:var(--text)}
   height: 100dvh;
   min-height: 100dvh;
 }
+
+
+/* HIDE AND SHOOT — compact square dashboard game tile */
+.hide-shoot-feature{display:flex;justify-content:flex-start;margin:-7px 0 28px}
+.hide-shoot-poster{position:relative;display:block;width:clamp(170px,19vw,218px);aspect-ratio:1/1;padding:0;overflow:hidden;border:1px solid #b8d7ee;border-radius:18px;background:#0b2344;cursor:pointer;text-align:left;box-shadow:0 8px 24px rgba(30,75,120,.16);isolation:isolate;transition:transform .22s ease,box-shadow .22s ease}
+.hide-shoot-poster:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(30,75,120,.24)}
+.hide-shoot-poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}
+.hide-shoot-poster:hover img{transform:scale(1.055)}
+.hide-shoot-poster-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,20,43,.02) 24%,rgba(5,20,43,.18) 48%,rgba(4,15,34,.94) 100%);z-index:1}
+.hide-shoot-poster-copy{position:absolute;z-index:2;left:14px;right:10px;bottom:48px;color:#fff;display:flex;flex-direction:column;gap:3px}
+.hide-shoot-poster-copy b{font:900 17px/1.05 Manrope,sans-serif;letter-spacing:.5px;text-shadow:0 2px 8px #06172d}
+.hide-shoot-poster-copy small{font-size:8px;font-weight:800;letter-spacing:1.25px;color:#bceaff}
+.hide-shoot-play{position:absolute;z-index:2;left:14px;bottom:13px;padding:7px 12px;border-radius:99px;background:#42c9f5;color:#062342;font-size:10px;font-weight:900;letter-spacing:.45px;box-shadow:0 3px 0 #1687b5}
+.hide-shoot-game-page{width:100%;max-width:1440px;margin:0 auto}
+.hide-shoot-game-toolbar{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px;color:#28618e;font-size:11px;font-weight:900;letter-spacing:1.4px}
+.hide-shoot-game-frame{display:block;width:100%;height:calc(100dvh - 190px);min-height:650px;border:1px solid #d3e3f1;border-radius:16px;background:#dbeafe;box-shadow:0 8px 28px rgba(29,66,103,.12)}
+@media(max-width:700px){.hide-shoot-feature{margin-top:-4px}.hide-shoot-poster{width:min(52vw,205px)}.hide-shoot-game-frame{height:calc(100dvh - 190px);min-height:600px;border-radius:10px}.hide-shoot-game-toolbar{font-size:9px}}
