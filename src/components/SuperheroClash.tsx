@@ -39,16 +39,6 @@ function shufflePowers(): Power[] {
   return pool.slice(0, 5)
 }
 
-const POWER_EFFECT_TEXTURES: Record<string, string> = {
-  'THUNDER SPEAR': 'lightning', 'INFERNO WAVE': 'fire', 'FROST BREAKER': 'ice',
-  'VOID CRUSH': 'shadow', 'SOLAR BURST': 'solar', 'WIND CUTTER': 'wind',
-  'CRYSTAL GUARD': 'shield', 'METEOR KICK': 'impact', 'PLASMA ORB': 'plasma',
-  'PHANTOM DASH': 'speed', 'TIDAL DRAGON': 'water-dragon', 'OCEAN SPIRAL': 'water-vortex',
-  'PHOENIX ROAR': 'phoenix', 'FROST NOVA': 'frost-nova', 'GUARDIAN AEGIS': 'guardian-aegis',
-  'MEND AURA': 'mend-aura'
-}
-const powerEffectTextureCache: Record<string, HTMLImageElement> = {}
-
 export default function SuperheroClash({ onExit, onWin }: Props) {
   const [blueHero, setBlueHero] = useState(0)
   const [redHero, setRedHero] = useState(0)
@@ -71,15 +61,6 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
   const timersRef = useRef<number[]>([])
   const clearCombatTimers = () => { timersRef.current.forEach(timer => window.clearTimeout(timer)); timersRef.current = [] }
   useEffect(() => () => clearCombatTimers(), [])
-  useEffect(() => {
-    Object.entries(POWER_EFFECT_TEXTURES).forEach(([name, file]) => {
-      if (powerEffectTextureCache[name]) return
-      const image = new Image()
-      image.decoding = 'async'
-      image.src = `/images/power-effects/${file}.png`
-      powerEffectTextureCache[name] = image
-    })
-  }, [])
   const [blueReaction, setBlueReaction] = useState<'hurt' | 'stumble' | 'fall' | 'guard'>('guard')
   const [redReaction, setRedReaction] = useState<'hurt' | 'stumble' | 'fall' | 'guard'>('guard')
 
@@ -445,6 +426,19 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
           ctx.bezierCurveTo(-r,off-r*.9,r*.2,off+r*.9,r*2.2,off+Math.sin(t*4+k)*r*.2);ctx.stroke()
         }
         ctx.fillStyle='rgba(235,252,255,.8)';ctx.beginPath();ctx.ellipse(r*.25,0,r*.7,r*.35,0,0,Math.PI*2);ctx.fill()
+      } else if(power.type==='PLASMA'){
+        // Dense plasma nucleus with rotating ion bands and a hot white centre.
+        const plasma=ctx.createRadialGradient(-r*.18,-r*.12,1,0,0,r*2.05)
+        plasma.addColorStop(0,'#ffffff');plasma.addColorStop(.13,'#e9f4ff')
+        plasma.addColorStop(.34,rgba(power.color,.98));plasma.addColorStop(.72,rgba(power.color,.55));plasma.addColorStop(1,rgba(power.color,0))
+        ctx.fillStyle=plasma;ctx.beginPath();ctx.arc(0,0,r*2.05,0,Math.PI*2);ctx.fill()
+        for(let k=0;k<4;k++){
+          ctx.save();ctx.rotate(t*(k%2?1.6:-1.25)+k*Math.PI/4)
+          ctx.strokeStyle=rgba(k%2?'#ffffff':'#b9d9ff',.9-k*.12);ctx.lineWidth=3+k
+          ctx.beginPath();ctx.ellipse(0,0,r*(1.1+k*.16),r*(.35+k*.08),0,-Math.PI*.78,Math.PI*.78);ctx.stroke()
+          ctx.restore()
+        }
+        for(let k=0;k<7;k++){const a=t*2+k*Math.PI*2/7;ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(Math.cos(a)*r*1.45,Math.sin(a)*r*.72,2.2,0,Math.PI*2);ctx.fill()}
       } else if(power.type==='SHADOW'){
         ctx.rotate(t*2)
         const g=ctx.createRadialGradient(0,0,2,0,0,r*2.1);g.addColorStop(0,'#080512');g.addColorStop(.35,rgba(power.color,.95));g.addColorStop(1,rgba(power.color,0))
@@ -508,43 +502,18 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       }
     }
 
-    const drawEffectTexture = (x:number,y:number,dir:number,power:Power,t:number,scale=1,alpha=1) => {
-      const image = powerEffectTextureCache[power.name]
-      if (!image || !image.complete || image.naturalWidth === 0) {
-        drawAttack(x,y,dir,power,t,scale)
-        return
-      }
-      // Preserve the artwork's aspect ratio; the canvas applies continuous pulse, rotation,
-      // directional mirroring, additive light and motion blur on every rendered frame.
-      const maxW = Math.min(width * .34, 470) * scale
-      const maxH = Math.min(height * .58, 360) * scale
-      const ratio = image.naturalWidth / image.naturalHeight
-      let w = maxW, h = w / ratio
-      if (h > maxH) { h = maxH; w = h * ratio }
-      const pulse = 1 + Math.sin(t * 8.5) * .035
-      const angle = Math.sin(t * 3.4) * .035
+    // Procedural-only power renderer. No PNG/SVG power artwork is loaded or drawn.
+    // Each frame draws the live attack silhouette, its internal animation and its glow.
+    const drawProceduralPower = (x:number,y:number,dir:number,power:Power,t:number,scale=1,alpha=1) => {
       ctx.save()
-      ctx.translate(x,y)
-      if (dir < 0) ctx.scale(-1,1)
-      ctx.rotate(angle)
       ctx.globalAlpha = alpha
-      ctx.globalCompositeOperation = 'screen'
-      ctx.shadowColor = power.color
-      ctx.shadowBlur = 18 + 12 * (0.5 + 0.5 * Math.sin(t * 10))
-      ctx.filter = 'saturate(1.22) brightness(1.12)'
-      ctx.drawImage(image,-w*pulse/2,-h*pulse/2,w*pulse,h*pulse)
-      // A fine white-hot centre flash gives bright powers a luminous core without a flat beam.
-      if (['FIRE','SOLAR','PLASMA','LIGHTNING'].includes(power.type)) {
-        ctx.globalAlpha = alpha * .2
-        ctx.filter = 'blur(8px) brightness(1.8)'
-        ctx.drawImage(image,-w*.47,-h*.47,w*.94,h*.94)
-      }
+      drawAttack(x,y,dir,power,t,scale)
       ctx.restore()
     }
 
     const drawImpact = (x:number,y:number,power:Power,t:number) => {
       const progress=Math.min(1,t)
-      const radius=12+progress*width*.17
+      const radius=10+progress*width*.105
       ctx.save();ctx.globalAlpha=1-progress
       const g=ctx.createRadialGradient(x,y,1,x,y,radius)
       g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.18,rgba(power.color,.95));g.addColorStop(1,rgba(power.color,0))
@@ -558,10 +527,10 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       const elapsed=(now-start)/1000
       const current=valuesRef.current
       ctx.clearRect(0,0,width,height)
-      const midX=width*.5, midY=height*.47
-      const blueStart={x:width*.285,y:height*.43}
-      const redStart={x:width*.715,y:height*.43}
-      const target=impactSide==='blue'?{x:width*.205,y:height*.48}:{x:width*.795,y:height*.48}
+      const midX=width*.5, midY=height*.355
+      const blueStart={x:width*.34,y:height*.315}
+      const redStart={x:width*.66,y:height*.315}
+      const target=impactSide==='blue'?{x:width*.235,y:height*.385}:{x:width*.765,y:height*.385}
       const source=winningSide==='blue'?blueStart:redStart
       const winnerPower=winningSide==='blue'?bluePower:redPower
       const loserPower=winningSide==='blue'?redPower:bluePower
@@ -580,15 +549,15 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         const blueDefensive=['SHIELD','HEAL'].includes(bluePower.type)
         const redDefensive=['SHIELD','HEAL'].includes(redPower.type)
         if(!blueDefensive) {
-          drawOrb(blueStart.x,blueStart.y,8+charge*18,bluePower.color,bluePower,elapsed,charge*.45)
-          drawEffectTexture(blueStart.x,blueStart.y,1,bluePower,elapsed,.38+charge*.28,charge)
+          drawProceduralPower(blueStart.x,blueStart.y,1,bluePower,elapsed,.42+charge*.7,charge)
+          drawOrb(blueStart.x,blueStart.y,5+charge*10,bluePower.color,bluePower,elapsed,charge*.24)
         }
         if(!redDefensive) {
-          drawOrb(redStart.x,redStart.y,8+charge*18,redPower.color,redPower,elapsed,charge*.45)
-          drawEffectTexture(redStart.x,redStart.y,-1,redPower,elapsed,.38+charge*.28,charge)
+          drawProceduralPower(redStart.x,redStart.y,-1,redPower,elapsed,.42+charge*.7,charge)
+          drawOrb(redStart.x,redStart.y,5+charge*10,redPower.color,redPower,elapsed,charge*.24)
         }
-        if(blueDefensive) drawEffectTexture(blueStart.x,blueStart.y-34,1,bluePower,elapsed,.46+charge*.25,charge)
-        if(redDefensive) drawEffectTexture(redStart.x,redStart.y-34,-1,redPower,elapsed,.46+charge*.25,charge)
+        if(blueDefensive) drawProceduralPower(blueStart.x,blueStart.y-34,1,bluePower,elapsed,.46+charge*.25,charge)
+        if(redDefensive) drawProceduralPower(redStart.x,redStart.y-34,-1,redPower,elapsed,.46+charge*.25,charge)
         for(let i=0;i<2;i++){
           const origin=i===0?blueStart:redStart
           const power=i===0?bluePower:redPower
@@ -606,12 +575,18 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         const ry=redStart.y+(midY-redStart.y)*e+Math.sin(p*Math.PI)*-height*.035
         drawPowerWake(blueStart.x,blueStart.y,bx,by,bluePower,elapsed)
         drawPowerWake(redStart.x,redStart.y,rx,ry,redPower,elapsed)
-        drawEffectTexture(bx,by,1,bluePower,elapsed,.9,1)
-        drawEffectTexture(rx,ry,-1,redPower,elapsed,.9,1)
+        drawProceduralPower(bx,by,1,bluePower,elapsed,1.42,1)
+        drawProceduralPower(rx,ry,-1,redPower,elapsed,1.42,1)
         if(elapsed>4.25){
           const pulse=1+Math.sin(now*.018)*.14
-          ctx.save();ctx.globalAlpha=1-collide*.55;ctx.strokeStyle='#ffffff';ctx.lineWidth=5;ctx.shadowColor=winnerPower.color;ctx.shadowBlur=32
-          ctx.beginPath();ctx.arc(midX,midY,18*pulse+collide*width*.09,0,Math.PI*2);ctx.stroke();ctx.restore()
+          ctx.save();ctx.globalAlpha=1-collide*.35;ctx.shadowColor=winnerPower.color;ctx.shadowBlur=30
+          for(let ring=0;ring<4;ring++){
+            ctx.strokeStyle=ring%2?'rgba(255,255,255,.9)':rgba(ring%3===0?bluePower.color:redPower.color,.82)
+            ctx.lineWidth=ring===0?5:2.5
+            ctx.beginPath();ctx.arc(midX,midY,(12+ring*8)*pulse+collide*width*.075,0,Math.PI*2);ctx.stroke()
+          }
+          ctx.restore()
+          if(Math.random()<.8) addBurst(midX+rand(-12,12),midY+rand(-12,12),winnerPower.color,4,125)
         }
       }
 
@@ -622,15 +597,13 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         const y=midY+(target.y-midY)*p
         const loserFade=1-breakthrough
         drawPowerWake(midX,midY,x,y,winnerPower,elapsed)
-        drawEffectTexture(x,y,Math.sign(target.x-midX),winnerPower,elapsed,1+breakthrough*.18,1)
-        drawEffectTexture(midX,midY,winningSide==='blue'?-1:1,loserPower,elapsed,.46,loserFade*.45)
+        drawProceduralPower(x,y,Math.sign(target.x-midX),winnerPower,elapsed,1.48+breakthrough*.22,1)
+        drawProceduralPower(midX,midY,winningSide==='blue'?-1:1,loserPower,elapsed,.46,loserFade*.45)
         drawOrb(midX,midY,Math.max(1,26*loserFade),loserPower.color,loserPower,elapsed,loserFade*.45)
       }
 
       if(elapsed>=6.25 && elapsed<7.3) {
         drawImpact(target.x,target.y,winnerPower,impact)
-        const impactPower: Power = { ...winnerPower, name: 'METEOR KICK', type: 'IMPACT', color: winnerPower.color }
-        drawEffectTexture(target.x,target.y,winningSide==='blue'?1:-1,impactPower,elapsed,1.15,Math.max(0,1-impact*.35))
         if (elapsed < 6.55 && Math.random() < .85) addBurst(target.x,target.y,winnerPower.color,7,150)
       }
 
