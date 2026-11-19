@@ -1,0 +1,12 @@
+FINAL CINEMATIC COMBAT ENGINE UPDATE
+
+The original turn-based rules are preserved. Players still edit names, choose numbered powers one at a time, press ATTACK after both selections are locked, and proceed through the existing NEXT ROUND / winner flow. No keyboard or free-roam controls are used.
+
+The combat presentation now runs a staged sequence:
+CHARGE -> RELEASE -> COLLISION -> BREAKTHROUGH -> IMPACT -> ROUND RESULT.
+
+The sequence includes individual selected-power artwork, a central energy collision, a dominant-power breakthrough, collapse of the opposing power, a target impact burst, damage number, fighter hit reaction, recoil/knockback, shield/heal aura visuals, and the existing knockout/victory presentation.
+
+The existing power strength comparison, damage, shield mitigation, healing, health and first-to-zero winner rules remain unchanged.
+
+See CINEMATIC_COMBAT_ENGINE_RELEASE_NOTES.md for the detailed release notes and validation limits.
