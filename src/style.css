@@ -1339,3 +1339,116 @@ body{background:var(--bg);color:var(--text)}
 .gc-premium-victory.blue .gc-firework{filter:drop-shadow(0 0 9px #b8f3ff) drop-shadow(0 0 22px #38aaff);}
 @media(max-width:760px){.gc-victory-content{padding:10px 8px}.gc-victory-crest{margin:6px 0}.gc-premium-victory .gc-win-copy{padding:11px 10px}.gc-victory-subtitle{letter-spacing:.14em}.gc-victory-orbit{width:95%;height:27%;}}
 @media(prefers-reduced-motion:reduce){.gc-victory-rays,.gc-victory-spotlight,.gc-victory-confetti,.gc-victory-crest,.gc-victory-halo,.gc-victory-content,.gc-champion-fighter{animation:none!important}}
+
+/* ARENA REBUILD PASS — light anime arena, clear power identities, one-screen HUD */
+.gsh-screen.gsh-real-game.gsh-clean-clash{
+  background:radial-gradient(ellipse at 50% -18%,#ffffff 0%,#eef7ff 54%,#e7f2fb 100%)!important;
+  color:#173b5b!important;
+  padding:7px clamp(8px,1.4vw,20px)!important;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif!important;
+}
+.gsh-clean-clash .gsh-back-row{max-width:1680px!important;height:34px!important;min-height:34px!important;margin-bottom:5px!important}
+.gsh-clean-clash .gsh-brand{font-weight:950!important;letter-spacing:.16em!important;font-size:11px!important}
+.gc-select,.gc-game{max-width:1680px!important}
+.gc-select{border:1px solid #d5e7f5!important;border-radius:18px!important;background:linear-gradient(145deg,#fff 0%,#f5faff 62%,#f1f8ff 100%)!important;box-shadow:0 8px 28px #4c789416!important}
+.gc-hero-card{border-radius:16px!important;box-shadow:0 5px 18px #4c789410!important}
+.gc-hero-card img{filter:drop-shadow(0 5px 7px #355a7519)!important}
+.gc-game{gap:clamp(4px,.65vh,8px)!important}
+.gc-top-hud{align-items:center!important}
+.gc-hud-side{border-radius:11px!important;box-shadow:0 3px 10px #4774930d!important}
+.gc-stage{border:1px solid #c6dced!important;border-radius:16px!important;box-shadow:0 7px 22px #41698516,inset 0 0 0 1px #ffffff!important;background:#edf7ff!important}
+.gc-arena-backdrop>img{filter:saturate(.92) brightness(1.08)!important;object-position:center 58%!important}
+.gc-arena-vignette{background:linear-gradient(180deg,#eaf6ff00 0%,#f4faff00 66%,#dcebf41c 100%)!important}
+.gc-fighter{filter:drop-shadow(0 8px 10px #24496322)!important}
+.gc-fighter img{filter:drop-shadow(0 3px 5px #24496316)!important}
+.gc-impact{border-color:#b8d4e8!important;background:#ffffffed!important;box-shadow:0 4px 16px #3157771b!important}
+.gc-turn-status{font-weight:850!important;letter-spacing:.12em!important;color:#426b88!important}
+.gc-pick-panels{grid-template-columns:minmax(0,1fr) clamp(64px,7vw,92px) minmax(0,1fr)!important}
+.gc-picker{border-radius:13px!important;padding:7px!important}
+.gc-power-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:6px!important}
+.gc-power-grid button{
+  position:relative!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;
+  height:clamp(58px,8.2vh,76px)!important;min-height:58px!important;padding:5px 3px!important;overflow:hidden!important;
+  border:1px solid #c9ddea!important;border-radius:10px!important;background:linear-gradient(180deg,#ffffff 0%,#f0f8ff 100%)!important;
+  color:#234b68!important;box-shadow:0 2px 6px #37617c0b!important;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease!important;
+}
+.gc-power-grid button:before{content:""!important;position:absolute!important;left:0!important;right:0!important;top:0!important;height:3px!important;background:var(--power-accent,#66bce8)!important;opacity:.95!important}
+.gc-power-grid button>b.gc-power-icon{display:block!important;font-size:clamp(17px,1.8vw,25px)!important;line-height:1!important;font-weight:900!important;color:var(--power-accent,#2688bd)!important}
+.gc-power-grid button>span.gc-power-name{display:block!important;max-width:100%!important;font-size:clamp(6px,.67vw,9px)!important;line-height:1.08!important;font-weight:950!important;letter-spacing:.015em!important;white-space:normal!important;overflow-wrap:anywhere!important;color:#254d69!important}
+.gc-power-grid button>small.gc-power-type{display:block!important;font-size:clamp(5px,.55vw,7px)!important;line-height:1!important;font-weight:800!important;letter-spacing:.12em!important;color:#6b879c!important}
+.gc-power-grid button:disabled{opacity:.78!important}
+.gc-power-grid button:not(:disabled):hover{transform:translateY(-3px)!important;border-color:var(--power-accent,#5aaedb)!important;box-shadow:0 5px 12px #326b8d1a!important}
+.gc-power-grid button.chosen{outline:2px solid var(--power-accent,#258ecb)!important;outline-offset:1px!important;background:linear-gradient(180deg,#fff,#e6f5ff)!important;transform:translateY(-2px)!important}
+.gc-picker.red .gc-power-grid button{background:linear-gradient(180deg,#fff 0%,#fff5f2 100%)!important}
+.gc-picker.red .gc-power-grid button.chosen{background:linear-gradient(180deg,#fff,#ffebe5)!important}
+.gc-power-grid .power-lightning{--power-accent:#239bd9}.gc-power-grid .power-fire{--power-accent:#f06b42}.gc-power-grid .power-ice{--power-accent:#52bcd9}.gc-power-grid .power-shadow{--power-accent:#9873d5}.gc-power-grid .power-solar{--power-accent:#d69b32}.gc-power-grid .power-wind{--power-accent:#4cae91}.gc-power-grid .power-shield{--power-accent:#5b9fd0}.gc-power-grid .power-impact{--power-accent:#e27d50}.gc-power-grid .power-plasma{--power-accent:#647fd4}.gc-power-grid .power-speed{--power-accent:#9973ce}.gc-power-grid .power-water{--power-accent:#168fc7}.gc-power-grid .power-heal{--power-accent:#39ad79}
+.gc-revealed{border-radius:11px!important;background:linear-gradient(120deg,#fff,#f5faff)!important}
+.gc-revealed strong{font-size:clamp(10px,1.15vw,14px)!important}
+.gc-finish-actions button{min-height:38px!important;border-radius:10px!important}
+.gc-premium-victory .gc-victory-dim{background:radial-gradient(ellipse at 50% 38%,#eaf7ff1a 0%,#183c5a55 62%,#102b49a6 100%)!important}
+@media(max-width:760px){
+  .gc-pick-panels{grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr)!important;gap:3px!important}
+  .gc-power-grid{gap:2px!important}
+  .gc-power-grid button{height:clamp(43px,7vh,58px)!important;min-height:43px!important;padding:3px 1px!important;gap:2px!important;border-radius:7px!important}
+  .gc-power-grid button>b.gc-power-icon{font-size:15px!important}
+  .gc-power-grid button>span.gc-power-name{font-size:clamp(5px,1.3vw,7px)!important;line-height:1.0!important}
+  .gc-power-grid button>small.gc-power-type{font-size:5px!important;letter-spacing:.03em!important}
+}
+@media(prefers-reduced-motion:no-preference){
+  .gc-stage.is-clashing.beat-charge .gc-fighter.blue{animation:hero-blue-charge .65s ease-in-out both!important}
+  .gc-stage.is-clashing.beat-charge .gc-fighter.red{animation:hero-red-charge .65s ease-in-out both!important}
+  .gc-stage.is-clashing.beat-windup .gc-fighter.blue{animation:hero-blue-windup .5s cubic-bezier(.2,.75,.25,1) both!important}
+  .gc-stage.is-clashing.beat-windup .gc-fighter.red{animation:hero-red-windup .5s cubic-bezier(.2,.75,.25,1) both!important}
+  .gc-stage.is-clashing.beat-release .gc-fighter.blue{animation:hero-blue-release .75s cubic-bezier(.18,.72,.2,1) both!important}
+  .gc-stage.is-clashing.beat-release .gc-fighter.red{animation:hero-red-release .75s cubic-bezier(.18,.72,.2,1) both!important}
+  .gc-stage.is-clashing.beat-collision .gc-fighter.blue,.gc-stage.is-clashing.beat-collision .gc-fighter.red{animation:hero-blue-brace .4s ease-in-out both!important}
+  .gc-stage.is-clashing.beat-breakthrough.dominant-blue .gc-fighter.blue,.gc-stage.is-clashing.beat-breakthrough.dominant-red .gc-fighter.red{animation:hero-blue-finisher .45s cubic-bezier(.16,.8,.22,1) both!important}
+  .gc-stage.is-clashing.beat-breakthrough.dominant-blue .gc-fighter.red,.gc-stage.is-clashing.beat-breakthrough.dominant-red .gc-fighter.blue{animation:hero-red-brace .45s ease-in both!important}
+  .gc-stage.is-clashing.beat-impact .gc-fighter.blue.blue-hurt,.gc-stage.is-clashing.beat-impact .gc-fighter.red.red-hurt{animation:hero-blue-hit .45s cubic-bezier(.2,.8,.2,1) both!important}
+  .gc-stage.is-clashing.beat-recovery .gc-fighter{animation:hero-recover .4s ease-out both!important}
+}
+
+/* Immersive single-screen mode: hide the learning portal chrome while the arena is open. */
+.app-shell.arena-mode{display:block!important;min-height:100dvh!important;height:100dvh!important;overflow:hidden!important;background:#edf6fd!important}
+.app-shell.arena-mode>.sidebar,.app-shell.arena-mode>.main-area>.topbar,.app-shell.arena-mode>.main-area>footer{display:none!important}
+.app-shell.arena-mode>.main-area{width:100%!important;min-width:0!important;min-height:100dvh!important;height:100dvh!important;margin:0!important;padding:0!important;overflow:hidden!important}
+.app-shell.arena-mode>.main-area>.content{width:100%!important;max-width:none!important;height:100dvh!important;min-height:100dvh!important;margin:0!important;padding:0!important;overflow:hidden!important}
+.app-shell.arena-mode .gsh-screen.gsh-real-game{width:100%!important;height:100dvh!important;min-height:100dvh!important;}
+.gc-live-power-canvas{contain:layout paint!important;will-change:transform!important;image-rendering:auto!important}
+.gc-fighter,.gc-fighter img{backface-visibility:hidden!important;will-change:transform,filter!important}
+
+/* Number-first power selection: reveal the signature move only after both players lock in. */
+.gc-number-grid{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:8px!important}
+.gc-number-grid .gc-number-option{height:clamp(52px,7vh,76px)!important;min-width:0!important;padding:0!important;border:1px solid #c6dceb!important;border-radius:12px!important;background:linear-gradient(180deg,#ffffff 0%,#edf7ff 100%)!important;color:#285675!important;box-shadow:0 3px 10px #315d7810!important;transition:transform .16s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease!important}
+.gc-number-grid .gc-number-option:not(:disabled):hover{transform:translateY(-3px)!important;border-color:#69b9e9!important;box-shadow:0 7px 18px #3a9bd52b!important}
+.gc-number-grid .gc-number-option:disabled{opacity:.56!important}
+.gc-number-option .gc-option-number{font-size:clamp(22px,2.5vw,32px)!important;font-weight:900!important;line-height:1!important;letter-spacing:-.04em!important}
+.gc-number-grid .gc-number-option.chosen{border:2px solid #278fd0!important;background:linear-gradient(180deg,#e9f7ff,#d7efff)!important;color:#126ca8!important;box-shadow:0 0 0 3px #62b9eb20,0 6px 18px #398dc52b!important}
+.gc-picker.red .gc-number-grid .gc-number-option.chosen{border-color:#df806d!important;background:linear-gradient(180deg,#fff4f0,#ffe5dd)!important;color:#b64d3b!important}
+.gc-selected-power{--selected-power:#55c8ff;margin-top:10px;padding:12px 13px;border:1px solid color-mix(in srgb,var(--selected-power) 45%,#d7e6ef);border-radius:13px;background:linear-gradient(135deg,#fff 0%,color-mix(in srgb,var(--selected-power) 11%,#f7fbff) 100%);box-shadow:0 7px 20px #315d7810;animation:gc-power-reveal .28s ease-out both}
+.gc-selected-power-heading{display:flex;align-items:center;gap:10px}
+.gc-selected-power-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:11px;background:color-mix(in srgb,var(--selected-power) 17%,white);color:var(--selected-power);font-size:27px;font-weight:900;text-shadow:0 2px 10px color-mix(in srgb,var(--selected-power) 35%,transparent)}
+.gc-selected-power-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.gc-selected-power-copy small,.gc-attack-form-label{font-size:9px;font-weight:800;letter-spacing:.13em;color:#66849a}
+.gc-selected-power-copy strong{font-size:clamp(13px,1.25vw,17px);line-height:1.15;font-weight:950;letter-spacing:.035em;color:#183d58}
+.gc-selected-check{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#e1f7eb;color:#21945b;font-weight:900}
+.gc-selected-power>p{margin:9px 0 10px;color:#557187;font-size:11px;line-height:1.4}
+.gc-attack-form{display:grid;grid-template-columns:1fr;gap:3px;padding:9px 10px;border-radius:9px;background:color-mix(in srgb,var(--selected-power) 9%,#f7fbff);border:1px solid color-mix(in srgb,var(--selected-power) 24%,white)}
+.gc-attack-form>strong{font-size:11px;letter-spacing:.045em;color:#234e6b;font-weight:900}
+.gc-attack-form-hint{font-size:10px;color:#66849a;line-height:1.3}
+.gc-choice-confirm{margin-top:9px;padding-top:8px;border-top:1px solid #d8e8f1;color:#3684ad;font-size:9px;font-weight:900;letter-spacing:.1em}
+@keyframes gc-power-reveal{from{opacity:0;transform:translateY(7px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:700px){.gc-number-grid{gap:4px!important}.gc-number-grid .gc-number-option{height:48px!important;border-radius:8px!important}.gc-selected-power{padding:9px}.gc-selected-power-icon{width:34px;height:34px;flex-basis:34px;font-size:22px}.gc-selected-power>p{font-size:10px}}
+
+/* Procedural combat rig takes over during a clash; no static pose double-render. */
+.gc-stage.is-clashing .gc-fighter .gc-base-pose{opacity:0!important}
+.gc-live-power-canvas{pointer-events:none!important}
+.gc-damage-number small{display:block;margin-top:4px;font-size:10px;letter-spacing:.12em;text-align:center;color:#fff;text-shadow:0 2px 8px #1b3d5c}
+.gc-opponent-mode{display:flex;gap:6px;margin-top:10px;justify-content:center}
+.gc-opponent-mode button{border:1px solid #c5d9e8;border-radius:8px;padding:7px 12px;background:#fff;color:#45677e;font-size:9px;font-weight:900;letter-spacing:.08em;cursor:pointer}
+.gc-opponent-mode button.active{background:#e2f3ff;border-color:#58a8d8;color:#176d9f;box-shadow:0 0 0 2px #58a8d822}
+@media(prefers-reduced-motion:reduce){.gc-live-power-canvas{opacity:.72!important}.gc-stage.is-clashing{animation:none!important}}
+.gc-move-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:8px}
+.gc-move-stats>span{display:flex;flex-direction:column;gap:2px;padding:6px 4px;border-radius:7px;background:#f0f7fc;border:1px solid #e0edf5;text-align:center}
+.gc-move-stats b{font-size:10px;color:#234e6b;font-variant-numeric:tabular-nums}
+.gc-move-stats small{font-size:7px;font-weight:900;letter-spacing:.1em;color:#7690a2}

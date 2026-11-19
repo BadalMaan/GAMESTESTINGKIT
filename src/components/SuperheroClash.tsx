@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { ArrowLeft, Crown, Shield, Swords, Zap, RotateCcw, Sparkles } from 'lucide-react'
+import { getAttackProfile, resolveExchange } from '../game/engine/combatEngine'
+import { chooseCpuPowerIndex } from '../game/engine/aiEngine'
+import { playPowerSound } from '../game/engine/audioEngine'
 
 type Props = { onExit: () => void; onWin?: () => void }
 type Side = 'blue' | 'red'
 type Power = { name: string; type: string; icon: string; strength: number; color: string; note: string }
 
 const blueHeroes = [
-  { name: 'NOVA', title: 'THE LIGHTNING STRIKER', image: '/images/fighters/blue-idle.png' },
-  { name: 'VOLT', title: 'THE STORM WARRIOR', image: '/images/fighters/blue-idle.png' },
-  { name: 'FROST', title: 'THE ICE GUARDIAN', image: '/images/fighters/blue-idle.png' },
+  { name: 'NOVA', title: 'THE LIGHTNING STRIKER', image: '/images/fighters/blue-idle.png', accent: '#79dcff', bonus: 3, passive: 'ENERGY CONTROL · +3 POWER' },
+  { name: 'VOLT', title: 'THE STORM WARRIOR', image: '/images/fighters/blue-idle.png', accent: '#b6a0ff', bonus: 5, passive: 'BURST SPECIALIST · +5 POWER' },
+  { name: 'FROST', title: 'THE ICE GUARDIAN', image: '/images/fighters/blue-idle.png', accent: '#8ceaff', bonus: 2, passive: 'CONTROL SPECIALIST · +2 POWER' },
 ]
 const redHeroes = [
-  { name: 'EMBER', title: 'THE FIRE CHAMPION', image: '/images/fighters/red-idle.png' },
-  { name: 'HEX', title: 'THE SHADOW LORD', image: '/images/fighters/red-idle.png' },
-  { name: 'SOLIS', title: 'THE SOLAR KNIGHT', image: '/images/fighters/red-idle.png' },
+  { name: 'EMBER', title: 'THE FIRE CHAMPION', image: '/images/fighters/red-idle.png', accent: '#ffb19a', bonus: 4, passive: 'FLAME MASTERY · +4 POWER' },
+  { name: 'HEX', title: 'THE SHADOW LORD', image: '/images/fighters/red-idle.png', accent: '#c49bff', bonus: 5, passive: 'VOID MASTERY · +5 POWER' },
+  { name: 'SOLIS', title: 'THE SOLAR KNIGHT', image: '/images/fighters/red-idle.png', accent: '#ffe18a', bonus: 3, passive: 'RADIANT GUARD · +3 POWER' },
 ]
 const powerPool: Power[] = [
   { name: 'THUNDER SPEAR', type: 'LIGHTNING', icon: 'ϟ', strength: 78, color: '#55c8ff', note: 'A focused bolt that pierces the arena.' },
@@ -42,6 +45,7 @@ function shufflePowers(): Power[] {
 export default function SuperheroClash({ onExit, onWin }: Props) {
   const [blueHero, setBlueHero] = useState(0)
   const [redHero, setRedHero] = useState(0)
+  const [opponentMode, setOpponentMode] = useState<'human' | 'cpu'>('human')
   const [bluePlayerName, setBluePlayerName] = useState('NOVA')
   const [redPlayerName, setRedPlayerName] = useState('EMBER')
   const [round, setRound] = useState(1)
@@ -58,6 +62,8 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
   const [dominantSide, setDominantSide] = useState<Side | null>(null)
   const [clashBeat, setClashBeat] = useState<'charge' | 'windup' | 'release' | 'collision' | 'breakthrough' | 'impact' | 'recovery'>('charge')
   const [impactDamage, setImpactDamage] = useState(0)
+  const [comboLabel, setComboLabel] = useState('')
+  const [comboHits, setComboHits] = useState(0)
   const timersRef = useRef<number[]>([])
   const clearCombatTimers = () => { timersRef.current.forEach(timer => window.clearTimeout(timer)); timersRef.current = [] }
   useEffect(() => () => clearCombatTimers(), [])
@@ -66,7 +72,7 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
 
   const blue = blueHeroes[blueHero], red = redHeroes[redHero]
   const blueDisplayName = bluePlayerName.trim() || blue.name
-  const redDisplayName = redPlayerName.trim() || red.name
+  const redDisplayName = redPlayerName.trim() || (opponentMode === 'cpu' ? 'ARENA CPU' : red.name)
   const bluePower = bluePick === null ? null : bluePowers[bluePick]
   const redPower = redPick === null ? null : redPowers[redPick]
   const poseForPower = (power: Power | null) => {
@@ -87,11 +93,17 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
     return `/images/fighters/${side}-idle.png`
   }
   const begin = () => {
-    clearCombatTimers(); setBlueHealth(100); setRedHealth(100); setRound(1); setWinner(null); setDominantSide(null); setImpactDamage(0); setClashBeat('charge')
+    clearCombatTimers(); setBlueHealth(100); setRedHealth(100); setRound(1); setWinner(null); setDominantSide(null); setImpactDamage(0); setComboLabel(''); setComboHits(0); setClashBeat('charge')
     setBluePowers(shufflePowers()); setRedPowers(shufflePowers()); setBluePick(null); setRedPick(null); setImpactSide(null); setBlueReaction('guard'); setRedReaction('guard'); setPhase('p1')
   }
   const choose = (side: Side, index: number) => {
-    if (side === 'blue' && phase === 'p1') { setBluePick(index); setPhase('p2') }
+    if (side === 'blue' && phase === 'p1') {
+      setBluePick(index)
+      if (opponentMode === 'cpu') {
+        const cpuIndex = chooseCpuPowerIndex(redPowers, bluePowers[index])
+        setRedPick(cpuIndex); setPhase('ready')
+      } else setPhase('p2')
+    }
     if (side === 'red' && phase === 'p2') { setRedPick(index); setPhase('ready') }
   }
   const resolve = () => {
@@ -101,73 +113,75 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
     setClashId(v => v + 1)
     setClashBeat('charge')
 
-    // Preserve the existing one-winner-per-round power rule and damage model.
-    const blueWinsClash = bluePower.strength === redPower.strength
-      ? Math.random() < 0.5
-      : bluePower.strength > redPower.strength
-    const winningSide: Side = blueWinsClash ? 'blue' : 'red'
-    const winnerPower = blueWinsClash ? bluePower : redPower
-    const hitDamage = Math.round(10 + winnerPower.strength * 0.16)
-    const blueTakesHit = !blueWinsClash
-    const redTakesHit = blueWinsClash
-    const blueHeal = bluePower.type === 'HEAL' && !blueTakesHit ? 12 : 0
-    const redHeal = redPower.type === 'HEAL' && !redTakesHit ? 12 : 0
-    const blueShielded = bluePower.type === 'SHIELD' && blueTakesHit
-    const redShielded = redPower.type === 'SHIELD' && redTakesHit
-    const blueDamage = blueTakesHit ? (blueShielded ? Math.max(2, Math.round(hitDamage * 0.28)) : hitDamage) : 0
-    const redDamage = redTakesHit ? (redShielded ? Math.max(2, Math.round(hitDamage * 0.28)) : hitDamage) : 0
-    const actualDamage = blueDamage || redDamage
-    const nextBlue = Math.min(100, Math.max(0, blueHealth - blueDamage + blueHeal))
-    const nextRed = Math.min(100, Math.max(0, redHealth - redDamage + redHeal))
-    const victim: Side = blueTakesHit ? 'blue' : 'red'
-
+    // The original power-strength contest is preserved, but each move now
+    // resolves through its own attack profile, contact box, hit count and reaction.
+    const blueCombatPower = { ...bluePower, strength: bluePower.strength + blue.bonus }
+    const redCombatPower = { ...redPower, strength: redPower.strength + red.bonus }
+    const exchange = resolveExchange(blueCombatPower, redCombatPower, blueHealth, redHealth)
+    const attackPower = exchange.winner === 'blue' ? blueCombatPower : redCombatPower
+    playPowerSound(attackPower.type, attackPower.strength)
+    const winningSide: Side = exchange.winner
+    const blueTakesHit = exchange.victim === 'blue' && exchange.damage > 0
+    const redTakesHit = exchange.victim === 'red' && exchange.damage > 0
+    const actualDamage = exchange.damage
+    const nextBlue = exchange.blueHealth
+    const nextRed = exchange.redHealth
+    setComboLabel(exchange.comboLabel)
+    setComboHits(exchange.hitCount)
     setDominantSide(winningSide)
-    setImpactSide(victim)
+    setImpactSide(exchange.victim)
     setImpactDamage(actualDamage)
     setBlueReaction('guard')
     setRedReaction('guard')
 
-    // Deliberate cinematic timeline. The game remains turn-based; only the
-    // presentation of the already-locked result is stretched into readable beats.
-    timersRef.current.push(window.setTimeout(() => setClashBeat('windup'), 1050))
-    timersRef.current.push(window.setTimeout(() => setClashBeat('release'), 2450))
-    timersRef.current.push(window.setTimeout(() => setClashBeat('collision'), 4250))
-    timersRef.current.push(window.setTimeout(() => setClashBeat('breakthrough'), 5150))
+    // Preserve a consistent 3.6s cinematic exchange while each move keeps
+    // its own startup / active / recovery timing proportions.
+    const timing = exchange.profile
+    const timingTotal = timing.startupMs + timing.activeMs + timing.recoveryMs
+    const timingScale = 3600 / timingTotal
+    const windupAt = Math.round(timing.startupMs * timingScale * .55)
+    const releaseAt = Math.round(timing.startupMs * timingScale)
+    const collisionAt = Math.round((timing.startupMs + timing.activeMs * .48) * timingScale)
+    const breakthroughAt = Math.round((timing.startupMs + timing.activeMs * .76) * timingScale)
+    const impactAt = Math.round((timing.startupMs + timing.activeMs) * timingScale)
+    const recoveryAt = Math.round((timing.startupMs + timing.activeMs + timing.recoveryMs * .5) * timingScale)
+    const victimReaction = timing.reaction === 'freeze' || timing.reaction === 'guard-break' ? 'stumble' : 'hurt'
+    timersRef.current.push(window.setTimeout(() => setClashBeat('windup'), windupAt))
+    timersRef.current.push(window.setTimeout(() => setClashBeat('release'), releaseAt))
+    timersRef.current.push(window.setTimeout(() => setClashBeat('collision'), collisionAt))
+    timersRef.current.push(window.setTimeout(() => setClashBeat('breakthrough'), breakthroughAt))
     timersRef.current.push(window.setTimeout(() => {
       setClashBeat('impact')
-      // Health changes at the exact visual hit, not after the recovery animation.
       setBlueHealth(nextBlue)
       setRedHealth(nextRed)
-      setBlueReaction(blueTakesHit ? (nextBlue <= 0 ? 'fall' : 'hurt') : 'guard')
-      setRedReaction(redTakesHit ? (nextRed <= 0 ? 'fall' : 'hurt') : 'guard')
-    }, 6250))
-    timersRef.current.push(window.setTimeout(() => setClashBeat('recovery'), 7200))
+      setBlueReaction(blueTakesHit ? (nextBlue <= 0 ? 'fall' : victimReaction) : 'guard')
+      setRedReaction(redTakesHit ? (nextRed <= 0 ? 'fall' : victimReaction) : 'guard')
+    }, impactAt))
+    timersRef.current.push(window.setTimeout(() => setClashBeat('recovery'), recoveryAt))
     timersRef.current.push(window.setTimeout(() => {
       if (nextBlue <= 0 || nextRed <= 0) {
         const winSide: Side = nextBlue > nextRed ? 'blue' : 'red'
         setWinner(winSide)
         setPhase('finished')
         onWin?.()
-      } else {
-        setPhase('result')
-      }
-    }, 8250))
+      } else setPhase('result')
+    }, 3600))
   }
   const nextRound = () => {
-    clearCombatTimers(); setDominantSide(null); setImpactDamage(0); setClashBeat('charge')
+    clearCombatTimers(); setDominantSide(null); setImpactDamage(0); setComboLabel(''); setComboHits(0); setClashBeat('charge')
     setRound(v => v + 1); setBluePowers(shufflePowers()); setRedPowers(shufflePowers()); setBluePick(null); setRedPick(null); setImpactSide(null); setBlueReaction('guard'); setRedReaction('guard'); setPhase('p1')
   }
-  const reset = () => { clearCombatTimers(); setPhase('select'); setWinner(null); setImpactSide(null); setDominantSide(null); setImpactDamage(0); setClashBeat('charge'); setBlueHealth(100); setRedHealth(100) }
+  const reset = () => { clearCombatTimers(); setPhase('select'); setWinner(null); setImpactSide(null); setDominantSide(null); setImpactDamage(0); setComboLabel(''); setComboHits(0); setClashBeat('charge'); setBlueHealth(100); setRedHealth(100); setBluePick(null); setRedPick(null) }
 
-  return <main className="gsh-screen gsh-real-game gsh-clean-clash">
+  return <main className="gsh-screen gsh-real-game gsh-clean-clash" aria-label="Global Super Hero fighting game">
     <header className="gsh-back-row"><button onClick={onExit}><ArrowLeft size={17}/> EXIT ARENA</button><div className="gsh-brand"><Crown size={18}/> GLOBAL SUPER HERO</div><span className="gsh-round-tag">2 PLAYER · POWER CLASH</span></header>
 
     {phase === 'select' && <section className="gc-select">
       <div className="gc-kicker">THE ARENA IS READY</div><h1>CHOOSE YOUR CHAMPIONS</h1><p>Two heroes enter. Every round brings five new powers. Choose wisely.</p>
       <div className="gc-select-grid">
-        <article className="gc-hero-card blue"><div className="gc-player-label">PLAYER 1</div><img src={blue.image} alt="Blue hero"/><h2>{blue.name}</h2><span>{blue.title}</span><label className="gc-name-field">PLAYER 1 NAME<input maxLength={18} value={bluePlayerName} onChange={e => setBluePlayerName(e.target.value)} placeholder="Enter player 1 name"/></label><div className="gc-hero-switch">{blueHeroes.map((h, i) => <button key={h.name} className={blueHero === i ? 'active' : ''} onClick={() => {setBlueHero(i);setBluePlayerName(h.name)}}>{h.name}</button>)}</div></article>
+        <article className="gc-hero-card blue"><div className="gc-player-label">PLAYER 1</div><img src={blue.image} alt="Blue hero"/><h2>{blue.name}</h2><span>{blue.title} · {blue.passive}</span><label className="gc-name-field">PLAYER 1 NAME<input maxLength={18} value={bluePlayerName} onChange={e => setBluePlayerName(e.target.value)} placeholder="Enter player 1 name"/></label><div className="gc-hero-switch">{blueHeroes.map((h, i) => <button key={h.name} className={blueHero === i ? 'active' : ''} onClick={() => {setBlueHero(i);setBluePlayerName(h.name)}}>{h.name}</button>)}</div></article>
         <div className="gc-vs">VS</div>
-        <article className="gc-hero-card red"><div className="gc-player-label">PLAYER 2</div><img src={red.image} alt="Red hero"/><h2>{red.name}</h2><span>{red.title}</span><label className="gc-name-field">PLAYER 2 NAME<input maxLength={18} value={redPlayerName} onChange={e => setRedPlayerName(e.target.value)} placeholder="Enter player 2 name"/></label><div className="gc-hero-switch">{redHeroes.map((h, i) => <button key={h.name} className={redHero === i ? 'active' : ''} onClick={() => {setRedHero(i);setRedPlayerName(h.name)}}>{h.name}</button>)}</div></article>
+        <article className="gc-hero-card red"><div className="gc-player-label">PLAYER 2</div><img src={red.image} alt="Red hero"/><h2>{red.name}</h2><span>{red.title} · {red.passive}</span><label className="gc-name-field">PLAYER 2 NAME<input maxLength={18} value={redPlayerName} onChange={e => setRedPlayerName(e.target.value)} placeholder="Enter player 2 name"/></label><div className="gc-hero-switch">{redHeroes.map((h, i) => <button key={h.name} className={redHero === i ? 'active' : ''} onClick={() => {setRedHero(i);setRedPlayerName(h.name)}}>{h.name}</button>)}</div><div className="gc-opponent-mode"><button className={opponentMode === 'human' ? 'active' : ''} onClick={() => setOpponentMode('human')}>2 PLAYERS</button><button className={opponentMode === 'cpu' ? 'active' : ''} onClick={() => setOpponentMode('cpu')}>VS CPU</button></div></article>
       </div>
       <button className="gc-primary" onClick={begin}>ENTER THE ARENA <Swords size={19}/></button>
     </section>}
@@ -194,9 +208,9 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
           <img className="gc-base-pose" src={fighterImage('red', redPower, redReaction, phase === 'clash')} alt={`${redDisplayName} fighter action`} />
         </div>
         {phase === 'clash' && bluePower && redPower && dominantSide && impactSide && <LivePowerCanvas
-          bluePower={bluePower} redPower={redPower} winningSide={dominantSide} impactSide={impactSide} beat={clashBeat}
+          bluePower={bluePower} redPower={redPower} winningSide={dominantSide} impactSide={impactSide} beat={clashBeat} blueAccent={blue.accent} redAccent={red.accent}
         />}
-        {phase === 'clash' && clashBeat === 'impact' && impactDamage > 0 && <div className={`gc-damage-number ${impactSide || 'red'}`}>−{impactDamage}</div>}
+        {phase === 'clash' && clashBeat === 'impact' && impactDamage > 0 && <div className={`gc-damage-number ${impactSide || 'red'}`}>−{impactDamage}<small>{comboLabel}{comboHits > 1 ? ` · ${comboHits} HITS` : ''}</small></div>}
         {phase === 'result' && <div className="gc-result-banner"><strong>ROUND COMPLETE</strong><span>CHOOSE AGAIN</span></div>}
       {phase === 'finished' && <div className={`gc-win-celebration gc-premium-victory ${winner || 'blue'}`} aria-live="assertive">
         <div className="gc-victory-dim"/>
@@ -226,33 +240,61 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
       </div>
 
       {(phase === 'p1' || phase === 'p2' || phase === 'ready') && <div className="gc-pick-panels">
-        <PowerPicker side="blue" powers={bluePowers} selected={phase === 'p2' || phase === 'ready' ? null : bluePick} active={phase === 'p1'} locked={bluePick !== null} onChoose={i => choose('blue', i)} />
+        <PowerPicker side="blue" powers={bluePowers} selected={phase === 'ready' ? bluePick : null} active={phase === 'p1'} locked={bluePick !== null} onChoose={i => choose('blue', i)} />
         <div className="gc-middle-action">
           <div className="gc-lock-state">{bluePick === null ? 'P1 WAITING' : 'P1 LOCKED'}<span>{redPick === null ? 'P2 WAITING' : 'P2 LOCKED'}</span></div>
           {phase === 'ready' && <button className="gc-primary gc-reveal" onClick={resolve}>ATTACK! <Swords size={18}/></button>}
           {phase !== 'ready' && <div className="gc-vs-mini">VS</div>}
         </div>
-        <PowerPicker side="red" powers={redPowers} selected={phase === 'ready' ? null : redPick} active={phase === 'p2'} locked={redPick !== null} onChoose={i => choose('red', i)} />
+        <PowerPicker side="red" powers={redPowers} selected={phase === 'ready' ? redPick : null} active={phase === 'p2'} locked={redPick !== null} onChoose={i => choose('red', i)} />
       </div>}
       {(phase === 'clash' || phase === 'result' || phase === 'finished') && <div className="gc-reveal-row">
         <div className="gc-revealed blue"><small>{blueDisplayName}'S POWER</small><strong><em>{bluePower?.icon}</em>{bluePower?.name}</strong><span>{bluePower?.note}</span></div>
         <div className="gc-revealed red"><small>{redDisplayName}'S POWER</small><strong><em>{redPower?.icon}</em>{redPower?.name}</strong><span>{redPower?.note}</span></div>
       </div>}
       {phase === 'result' && <button className="gc-primary gc-next" onClick={nextRound}>NEXT ROUND <Zap size={18}/></button>}
-      {phase === 'finished' && <div className="gc-finish-actions"><button className="gc-primary" onClick={begin}><RotateCcw size={17}/> REMATCH</button><button className="gc-secondary" onClick={reset}>CHANGE HEROES</button></div>}
+      {phase === 'finished' && <div className="gc-finish-actions"><button className="gc-primary" onClick={reset}><RotateCcw size={17}/> NEXT FIGHT · EDIT PLAYERS</button></div>}
       <div className="gc-footnote">POWER SLOTS SHUFFLE EVERY ROUND <span>·</span> NO KEYBOARD REQUIRED <span>·</span> FIRST TO ZERO HEALTH LOSES</div>
     </section>}
   </main>
 }
 
 function PowerPicker({ side, powers, selected, active, locked, onChoose }: { side: Side; powers: Power[]; selected: number | null; active: boolean; locked: boolean; onChoose: (i: number) => void }) {
+  const selectedProfile = selected !== null && powers[selected] ? getAttackProfile(powers[selected]) : null
   return <div className={`gc-picker ${side} ${active ? 'is-active' : ''} ${locked ? 'is-locked' : ''}`}>
     <div className="gc-picker-head"><strong>{side === 'blue' ? 'PLAYER 1' : 'PLAYER 2'}</strong><span>{locked ? 'POWER LOCKED' : active ? 'SELECT ONE POWER' : 'WAITING'}</span></div>
-    <div className="gc-power-grid">{powers.map((power, i) => <button key={`${power.name}-${i}`} aria-label={`Choose power ${i + 1}: ${power.name}`} title={`Power ${i + 1}`} disabled={!active || locked} className={selected === i ? 'chosen' : ''} onClick={() => onChoose(i)}><b>{i + 1}</b></button>)}</div>
-    {locked && selected !== null && <div className="gc-choice-confirm">SELECTION LOCKED · HIDDEN UNTIL REVEAL</div>}
+    <div className="gc-power-grid gc-number-grid">{powers.map((power, i) => <button key={`${power.name}-${i}`} aria-label={`Choose option ${i + 1}`} title={`Option ${i + 1}`} disabled={!active || locked} className={`gc-number-option ${selected === i ? 'chosen' : ''}`} onClick={() => onChoose(i)}><span className="gc-option-number">{i + 1}</span></button>)}</div>
+    {selected !== null && powers[selected] && <div className={`gc-selected-power power-${powers[selected].type.toLowerCase()}`} style={{ '--selected-power': powers[selected].color } as CSSProperties}>
+      <div className="gc-selected-power-heading"><span className="gc-selected-power-icon">{powers[selected].icon}</span><div className="gc-selected-power-copy"><small>OPTION {selected + 1} · {powers[selected].type} POWER</small><strong>{powers[selected].name}</strong></div><span className="gc-selected-check">✓</span></div>
+      <p>{powers[selected].note}</p>
+      <div className="gc-attack-form"><span className="gc-attack-form-label">ATTACK FORM</span><strong>{attackFormFor(powers[selected])}</strong><span className="gc-attack-form-hint">{attackFormHint(powers[selected])}</span></div>
+      {selectedProfile && <div className="gc-move-stats"><span><b>{selectedProfile.startupMs}ms</b><small>STARTUP</small></span><span><b>{selectedProfile.activeMs}ms</b><small>ACTIVE</small></span><span><b>{selectedProfile.recoveryMs}ms</b><small>RECOVERY</small></span><span><b>{selectedProfile.hitCount}×</b><small>HITS</small></span></div>}
+      {locked && <div className="gc-choice-confirm">POWER LOCKED · READY FOR THE CLASH</div>}
+    </div>}
   </div>
 }
 
+
+function attackFormFor(power: Power): string {
+  if (power.type === 'LIGHTNING') return 'LIGHTNING CAST · SPEAR RELEASE'
+  if (power.type === 'FIRE') return 'FLAME CAST · INFERNO SURGE'
+  if (power.type === 'ICE') return 'ICE CAST · CRYSTAL BURST'
+  if (power.type === 'SHADOW') return 'VOID CAST · SHADOW CRUSH'
+  if (power.type === 'SOLAR') return 'SOLAR CAST · RADIANT BLAST'
+  if (power.type === 'WIND') return 'WIND CAST · PRESSURE WAVE'
+  if (power.type === 'SHIELD') return 'DEFENSIVE STANCE · AEGIS FORM'
+  if (power.type === 'IMPACT') return 'POWER STRIKE · METEOR FORM'
+  if (power.type === 'PLASMA') return 'ENERGY CAST · PLASMA ORB'
+  if (power.type === 'SPEED') return 'PHANTOM DASH · QUICK STRIKE'
+  if (power.type === 'WATER') return 'WATER CAST · TIDAL SURGE'
+  if (power.type === 'HEAL') return 'SUPPORT FORM · HEALING PULSE'
+  return `${power.type} FORM · SPECIAL RELEASE`
+}
+function attackFormHint(power: Power): string {
+  if (['SHIELD', 'HEAL'].includes(power.type)) return 'A defensive/support action with a dedicated visual effect'
+  if (['IMPACT', 'SPEED'].includes(power.type)) return 'A close-range physical attack with a fast impact finish'
+  return 'A signature energy attack with a distinct elemental release'
+}
 
 type LivePowerCanvasProps = {
   bluePower: Power
@@ -260,14 +302,16 @@ type LivePowerCanvasProps = {
   winningSide: Side
   impactSide: Side
   beat: 'charge' | 'windup' | 'release' | 'collision' | 'breakthrough' | 'impact' | 'recovery'
+  blueAccent: string
+  redAccent: string
 }
 
 type LiveParticle = { x:number; y:number; vx:number; vy:number; life:number; max:number; size:number; hue:number; alpha:number }
 
-function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }: LivePowerCanvasProps) {
+function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat, blueAccent, redAccent }: LivePowerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const valuesRef = useRef({ bluePower, redPower, winningSide, impactSide, beat })
-  valuesRef.current = { bluePower, redPower, winningSide, impactSide, beat }
+  const valuesRef = useRef({ bluePower, redPower, winningSide, impactSide, beat, blueAccent, redAccent })
+  valuesRef.current = { bluePower, redPower, winningSide, impactSide, beat, blueAccent, redAccent }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -309,7 +353,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
     }
     const addBurst = (x:number,y:number,color:string,count:number,force:number) => {
       const hue = (() => { const c=hexRgb(color); return c.r>c.g && c.r>c.b ? 20 : c.b>c.r ? 205 : 145 })()
-      for(let i=0;i<count;i++){
+      for(let i=0;i<count && particles.length<520;i++){
         const angle=rand(0,Math.PI*2), speed=rand(force*.25,force)
         particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:rand(.35,.9),max:.9,size:rand(1.2,4.5),hue,alpha:rand(.5,1)})
       }
@@ -666,6 +710,62 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       ctx.restore()
     }
 
+    const drawAnimeFighter = (x:number, floorY:number, side:Side, beatName:string, t:number, isWinner:boolean, isVictim:boolean, accent:string) => {
+      const dir = side === 'blue' ? 1 : -1
+      const scale = Math.min(1.8, Math.max(1.2, height / 360))
+      const phase = beatName
+      const bob = Math.sin(t * 5.4 + (side === 'red' ? 1.2 : 0)) * 2.4
+      let lean = 0, arm = -.25, leg = .12, crouch = 0
+      if (phase === 'charge' || phase === 'windup') { crouch = 7; arm = phase === 'charge' ? -.95 : -1.3; lean = -.12 }
+      if (phase === 'release' || phase === 'breakthrough') { lean = isWinner ? .52 : -.2; arm = isWinner ? 1.35 : -.8; leg = isWinner ? .9 : -.1; crouch = -2 }
+      if (phase === 'collision') { crouch = 4; arm = .9; lean = .12 }
+      if (phase === 'impact' && isVictim) { lean = -.72; arm = -1.8; leg = -.8; crouch = -3 }
+      if (phase === 'recovery') { lean = 0; arm = -.15; leg = 0; crouch = 0 }
+      ctx.save(); ctx.translate(x, floorY + bob); ctx.scale(dir * scale, scale)
+      // Aura silhouette and ground shadow.
+      ctx.globalAlpha = .2 + Math.sin(t * 7) * .045
+      ctx.fillStyle = side === 'blue' ? '#54caff' : '#ff785f'
+      ctx.beginPath(); ctx.ellipse(0, -94, 43 + Math.sin(t * 4) * 4, 103, 0, 0, Math.PI * 2); ctx.fill()
+      ctx.globalAlpha = 1
+      ctx.fillStyle = 'rgba(17,42,65,.2)'; ctx.beginPath(); ctx.ellipse(0, 0, 49, 8, 0, 0, Math.PI*2); ctx.fill()
+      ctx.translate(0, -crouch)
+      ctx.rotate(lean)
+      const main = side === 'blue' ? '#1978bd' : '#c64c42'
+      const light = accent
+      const dark = side === 'blue' ? '#123c70' : '#692e45'
+      const stroke = (x1:number,y1:number,x2:number,y2:number,w:number,color:string) => { ctx.strokeStyle=color; ctx.lineWidth=w; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke() }
+      // Back leg and boot.
+      stroke(-7, -48, -17 + Math.sin(t*5)*3, -23, 13, dark)
+      stroke(-17 + Math.sin(t*5)*3, -23, -22, -5, 11, main)
+      ctx.fillStyle = dark; ctx.beginPath(); ctx.roundRect(-32,-8,22,9,4); ctx.fill()
+      // Front leg animates into the kick frame.
+      const kneeX = 12 + Math.sin(leg) * 13
+      stroke(8,-48,kneeX,-27,14,main)
+      stroke(kneeX,-27,kneeX+Math.cos(leg)*15,-7,11,dark)
+      ctx.fillStyle = dark; ctx.beginPath(); ctx.roundRect(kneeX+4,-10,23,9,4); ctx.fill()
+      // Torso armour, waist and shoulder plates.
+      const torso = ctx.createLinearGradient(-22,-112,24,-50); torso.addColorStop(0,light); torso.addColorStop(.42,main); torso.addColorStop(1,dark)
+      ctx.fillStyle=torso; ctx.beginPath(); ctx.moveTo(-19,-111);ctx.lineTo(18,-111);ctx.lineTo(24,-67);ctx.lineTo(11,-48);ctx.lineTo(-13,-48);ctx.lineTo(-24,-70);ctx.closePath();ctx.fill()
+      ctx.strokeStyle='rgba(255,255,255,.58)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-10,-105);ctx.lineTo(1,-78);ctx.lineTo(13,-105);ctx.stroke()
+      ctx.fillStyle=light;ctx.beginPath();ctx.moveTo(-23,-106);ctx.lineTo(-34,-96);ctx.lineTo(-24,-78);ctx.lineTo(-12,-91);ctx.closePath();ctx.fill()
+      // Rear arm and front attacking arm.
+      stroke(-19,-101,-31,-83,11,dark); stroke(-31,-83,-36,-68,9,main)
+      const shoulderX=17, shoulderY=-99
+      const elbowX=shoulderX+Math.cos(arm)*20, elbowY=shoulderY+Math.sin(arm)*20
+      stroke(shoulderX,shoulderY,elbowX,elbowY,13,main)
+      stroke(elbowX,elbowY,elbowX+Math.cos(arm+.25)*20,elbowY+Math.sin(arm+.25)*20,10,light)
+      ctx.fillStyle='#f1f7ff';ctx.beginPath();ctx.arc(elbowX+Math.cos(arm+.25)*20,elbowY+Math.sin(arm+.25)*20,6,0,Math.PI*2);ctx.fill()
+      // Neck, face, eyes and stylized hair crest.
+      ctx.fillStyle='#e5b89e';ctx.fillRect(-6,-124,13,15)
+      ctx.fillStyle='#f2c9ad';ctx.beginPath();ctx.ellipse(0,-139,17,20,0,0,Math.PI*2);ctx.fill()
+      ctx.fillStyle=dark;ctx.beginPath();ctx.moveTo(-17,-143);ctx.lineTo(-20,-164);ctx.lineTo(-7,-155);ctx.lineTo(0,-174);ctx.lineTo(8,-155);ctx.lineTo(20,-163);ctx.lineTo(15,-137);ctx.closePath();ctx.fill()
+      ctx.fillStyle='#102d4c';ctx.fillRect(4,-142,8,3)
+      ctx.fillStyle='#fff';ctx.fillRect(8,-142,3,2)
+      // Waist sash and energy trim.
+      ctx.fillStyle=light;ctx.fillRect(-15,-61,30,5);ctx.fillStyle=dark;ctx.fillRect(-7,-60,14,4)
+      ctx.restore()
+    }
+
     const frame=(now:number)=>{
       const dt=Math.min(.04,(now-last)/1000);last=now
       const elapsed=(now-start)/1000
@@ -673,20 +773,23 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       const midX=width*.5, midY=height*.355
       const blueStart={x:width*.355,y:height*.325}
       const redStart={x:width*.645,y:height*.325}
+      // Procedural articulated fighters animate every rendered frame; these are not position-only image swaps.
+      drawAnimeFighter(width*.205, height*.91, 'blue', valuesRef.current.beat, elapsed, winningSide==='blue', impactSide==='blue' && valuesRef.current.beat==='impact', valuesRef.current.blueAccent)
+      drawAnimeFighter(width*.795, height*.91, 'red', valuesRef.current.beat, elapsed, winningSide==='red', impactSide==='red' && valuesRef.current.beat==='impact', valuesRef.current.redAccent)
       const target=impactSide==='blue'?{x:width*.235,y:height*.385}:{x:width*.765,y:height*.385}
       const source=winningSide==='blue'?blueStart:redStart
       const winnerPower=winningSide==='blue'?bluePower:redPower
       const loserPower=winningSide==='blue'?redPower:bluePower
       const phaseProgress=(a:number,b:number)=>Math.max(0,Math.min(1,(elapsed-a)/(b-a)))
       const ease=(v:number)=>v<.5?4*v*v*v:1-Math.pow(-2*v+2,3)/2
-      const release=phaseProgress(2.45,4.25)
-      const collide=phaseProgress(4.25,5.15)
-      const breakthrough=phaseProgress(5.15,6.1)
-      const impact=phaseProgress(6.25,7.2)
+      const release=phaseProgress(.65,1.9)
+      const collide=phaseProgress(1.9,2.3)
+      const breakthrough=phaseProgress(2.3,3.2)
+      const impact=phaseProgress(2.75,3.2)
 
       // Energy accumulates visibly at both hands before anything is fired.
-      if(elapsed<2.45){
-        const charge=Math.min(1,elapsed/2.45)
+      if(elapsed<.65){
+        const charge=Math.min(1,elapsed/.65)
         const blueDefensive=['SHIELD','HEAL'].includes(bluePower.type)
         const redDefensive=['SHIELD','HEAL'].includes(redPower.type)
         if(!blueDefensive) {
@@ -707,7 +810,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       }
 
       // The two real projectiles travel to a centre clash; no power-art images.
-      if(elapsed>=2.45 && elapsed<5.15){
+      if(elapsed>=.65 && elapsed<2.3){
         const p=release
         const e=ease(p)
         const bx=blueStart.x+(midX-blueStart.x)*e
@@ -719,7 +822,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         drawPowerWake(redStart.x,redStart.y,rx,ry,redPower,elapsed)
         drawProceduralPower(bx,by,1,bluePower,elapsed,2.12,1)
         drawProceduralPower(rx,ry,-1,redPower,elapsed,2.12,1)
-        if(elapsed>4.25){
+        if(elapsed>1.9){
           const pulse=1+Math.sin(now*.018)*.14
           ctx.save();ctx.globalAlpha=1-collide*.35;ctx.shadowColor=winnerPower.color;ctx.shadowBlur=42
           for(let ring=0;ring<4;ring++){
@@ -733,7 +836,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       }
 
       // Losing energy collapses; the winning projectile surges through the clash.
-      if(elapsed>=5.15 && elapsed<7.2){
+      if(elapsed>=2.3 && elapsed<3.2){
         const p=ease(breakthrough)
         const x=midX+(target.x-midX)*p
         const y=midY+(target.y-midY)*p
@@ -744,7 +847,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         drawOrb(midX,midY,Math.max(1,26*loserFade),loserPower.color,loserPower,elapsed,loserFade*.45)
       }
 
-      if(elapsed>=6.25 && elapsed<7.3) {
+      if(elapsed>=2.75 && elapsed<3.3) {
         drawImpact(target.x,target.y,winnerPower,impact)
         if (elapsed < 6.65 && Math.random() < .95) addBurst(target.x,target.y,winnerPower.color,11,175)
       }
@@ -762,17 +865,17 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       ctx.shadowBlur=0
 
       // Continuous sparks are emitted along the advancing winning bolt.
-      if(elapsed>2.45 && elapsed<7.2 && Math.random()<.9){
-        const t=elapsed<5.15?release:breakthrough
-        const x=elapsed<5.15?source.x+(midX-source.x)*ease(t):midX+(target.x-midX)*ease(t)
-        const y=elapsed<5.15?source.y+(midY-source.y)*ease(t):midY+(target.y-midY)*ease(t)
+      if(elapsed>.65 && elapsed<3.2 && Math.random()<.9){
+        const t=elapsed<2.3?release:breakthrough
+        const x=elapsed<2.3?source.x+(midX-source.x)*ease(t):midX+(target.x-midX)*ease(t)
+        const y=elapsed<2.3?source.y+(midY-source.y)*ease(t):midY+(target.y-midY)*ease(t)
         addBurst(x+rand(-8,8),y+rand(-8,8),winnerPower.color,2,70)
       }
       raf=requestAnimationFrame(frame)
     }
     raf=requestAnimationFrame(frame)
     return ()=>{cancelAnimationFrame(raf);observer.disconnect()}
-  }, [bluePower.name, redPower.name, winningSide, impactSide])
+  }, [bluePower.name, redPower.name, winningSide, impactSide, blueAccent, redAccent])
 
   return <canvas ref={canvasRef} className="gc-live-power-canvas" aria-hidden="true" />
 }
