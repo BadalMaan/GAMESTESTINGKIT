@@ -86,12 +86,6 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
     }
     return `/images/fighters/${side}-idle.png`
   }
-  const fighterActionImage = (side: Side, power: Power | null) => {
-    if (!power || ['SHIELD', 'HEAL'].includes(power.type)) return null
-    const action = ['IMPACT', 'SPEED'].includes(power.type) ? 'kick' : 'punch'
-    return `/images/fighters/${side}-${action}.png`
-  }
-
   const begin = () => {
     clearCombatTimers(); setBlueHealth(100); setRedHealth(100); setRound(1); setWinner(null); setDominantSide(null); setImpactDamage(0); setClashBeat('charge')
     setBluePowers(shufflePowers()); setRedPowers(shufflePowers()); setBluePick(null); setRedPick(null); setImpactSide(null); setBlueReaction('guard'); setRedReaction('guard'); setPhase('p1')
@@ -141,13 +135,14 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
     timersRef.current.push(window.setTimeout(() => setClashBeat('breakthrough'), 5150))
     timersRef.current.push(window.setTimeout(() => {
       setClashBeat('impact')
+      // Health changes at the exact visual hit, not after the recovery animation.
+      setBlueHealth(nextBlue)
+      setRedHealth(nextRed)
       setBlueReaction(blueTakesHit ? (nextBlue <= 0 ? 'fall' : 'hurt') : 'guard')
       setRedReaction(redTakesHit ? (nextRed <= 0 ? 'fall' : 'hurt') : 'guard')
     }, 6250))
     timersRef.current.push(window.setTimeout(() => setClashBeat('recovery'), 7200))
     timersRef.current.push(window.setTimeout(() => {
-      setBlueHealth(nextBlue)
-      setRedHealth(nextRed)
       if (nextBlue <= 0 || nextRed <= 0) {
         const winSide: Side = nextBlue > nextRed ? 'blue' : 'red'
         setWinner(winSide)
@@ -187,10 +182,6 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
       <div className={`gc-stage ${phase === 'clash' ? `is-clashing beat-${clashBeat} dominant-${dominantSide}` : ''} ${phase === 'result' ? `impact-${impactSide}` : ''}`} key={clashId}>
         <div className="gc-arena-backdrop"><img src="/images/arena-background.png" alt="Grand championship arena"/><div className="gc-arena-vignette"/><div className="gc-floor-ring ring-one"/><div className="gc-floor-ring ring-two"/></div>
         {phase === 'clash' && <>
-          <div className={`gc-hand-charge blue ${clashBeat}`} aria-hidden="true"><i/><b/><em/></div>
-          <div className={`gc-hand-charge red ${clashBeat}`} aria-hidden="true"><i/><b/><em/></div>
-          <PowerBlast side="blue" power={bluePower} beat={clashBeat} outcome={dominantSide === "blue" ? "dominant" : "collapsed"} />
-          <PowerBlast side="red" power={redPower} beat={clashBeat} outcome={dominantSide === "red" ? "dominant" : "collapsed"} />
           {impactSide && <div className={`gc-hit-spark gc-hit-${impactSide}`} aria-hidden="true"/>}
           <div className={`gc-breakthrough ${dominantSide || 'blue'}`} aria-hidden="true" />
           <div className={`gc-target-burst ${impactSide || 'red'}`} aria-hidden="true" />
@@ -198,14 +189,13 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
         </>}
         <div className={`gc-fighter blue ${phase === 'clash' ? `blue-attack pose-${poseForPower(bluePower)} ${clashBeat === 'impact' && impactSide === 'blue' ? 'blue-hurt' : ''} ${clashBeat === 'impact' && impactSide === 'blue' && blueHealth - impactDamage <= 0 ? 'blue-fall' : ''}` : phase === 'result' ? `blue-${blueReaction}` : phase === 'finished' && winner === 'red' ? 'blue-fall' : ''}`}>
           <img className="gc-base-pose" src={fighterImage('blue', bluePower, blueReaction, false)} alt={`${blueDisplayName} fighter action`} />
-          {phase === 'clash' && bluePower && !['SHIELD', 'HEAL'].includes(bluePower.type) && <img className={`gc-action-overlay blue-action ${clashBeat}`} src={fighterActionImage('blue', bluePower) || ''} alt="" aria-hidden="true" />}
         </div>
         <div className={`gc-fighter red ${phase === 'clash' ? `red-attack pose-${poseForPower(redPower)} ${clashBeat === 'impact' && impactSide === 'red' ? 'red-hurt' : ''} ${clashBeat === 'impact' && impactSide === 'red' && redHealth - impactDamage <= 0 ? 'red-fall' : ''}` : phase === 'result' ? `red-${redReaction}` : phase === 'finished' && winner === 'blue' ? 'red-fall' : ''}`}>
           <img className="gc-base-pose" src={fighterImage('red', redPower, redReaction, false)} alt={`${redDisplayName} fighter action`} />
-          {phase === 'clash' && redPower && !['SHIELD', 'HEAL'].includes(redPower.type) && <img className={`gc-action-overlay red-action ${clashBeat}`} src={fighterActionImage('red', redPower) || ''} alt="" aria-hidden="true" />}
         </div>
-        {phase === 'clash' && <div className={`gc-support-aura blue ${bluePower?.type === 'SHIELD' ? 'shield' : bluePower?.type === 'HEAL' ? 'heal' : ''}`} />}
-        {phase === 'clash' && <div className={`gc-support-aura red ${redPower?.type === 'SHIELD' ? 'shield' : redPower?.type === 'HEAL' ? 'heal' : ''}`} />}
+        {phase === 'clash' && bluePower && redPower && dominantSide && impactSide && <LivePowerCanvas
+          bluePower={bluePower} redPower={redPower} winningSide={dominantSide} impactSide={impactSide} beat={clashBeat}
+        />}
         {phase === 'clash' && clashBeat === 'impact' && impactDamage > 0 && <div className={`gc-damage-number ${impactSide || 'red'}`}>−{impactDamage}</div>}
         {phase === 'result' && <div className="gc-result-banner"><strong>ROUND COMPLETE</strong><span>CHOOSE AGAIN</span></div>}
       {phase === 'finished' && <div className={`gc-win-celebration ${winner || 'blue'}`} aria-live="assertive"><div className="gc-firework fw-one"/><div className="gc-firework fw-two"/><div className="gc-firework fw-three"/><div className="gc-win-copy"><span>✦ VICTORY ✦</span><strong>{winner === 'blue' ? blueDisplayName : redDisplayName}</strong><b>ARENA CHAMPION</b></div><div className="gc-firework fw-four"/><div className="gc-firework fw-five"/></div>}
@@ -249,23 +239,235 @@ function PowerPicker({ side, powers, selected, active, locked, onChoose }: { sid
 }
 
 
-const powerArtwork: Record<string, string> = {
-  'THUNDER SPEAR': 'lightning', 'INFERNO WAVE': 'fire', 'FROST BREAKER': 'ice',
-  'VOID CRUSH': 'shadow', 'SOLAR BURST': 'solar', 'WIND CUTTER': 'wind',
-  'CRYSTAL GUARD': 'shield', 'METEOR KICK': 'impact', 'PLASMA ORB': 'plasma',
-  'PHANTOM DASH': 'speed', 'TIDAL DRAGON': 'water-dragon', 'OCEAN SPIRAL': 'water-vortex',
-  'PHOENIX ROAR': 'phoenix', 'FROST NOVA': 'frost-nova',
-  'GUARDIAN AEGIS': 'guardian-aegis', 'MEND AURA': 'mend-aura',
+type LivePowerCanvasProps = {
+  bluePower: Power
+  redPower: Power
+  winningSide: Side
+  impactSide: Side
+  beat: 'charge' | 'windup' | 'release' | 'collision' | 'breakthrough' | 'impact' | 'recovery'
 }
 
-function PowerBlast({ side, power, beat, outcome }: { side: Side; power: Power | null; beat: 'charge' | 'windup' | 'release' | 'collision' | 'breakthrough' | 'impact' | 'recovery'; outcome: 'dominant' | 'collapsed' }) {
-  if (!power) return null
-  const artwork = powerArtwork[power.name] || 'plasma'
-  return <div className={`gc-blast ${side} power-${power.type.toLowerCase()} artwork-${artwork} beat-${beat} outcome-${outcome}`} style={{ '--blast': power.color, '--blast2': `${power.color}cc` } as CSSProperties & { '--blast': string; '--blast2': string }} aria-label={`${power.name} visual attack`}>
-    <img className="gc-blast-art" src={`/images/power-effects/${artwork}.png`} alt="" draggable={false} />
-    <span className="gc-blast-core" />
-    <span className="gc-blast-trail" />
-    <span className="gc-blast-particles" />
-    <span className="gc-blast-sparks" />
-  </div>
+type LiveParticle = { x:number; y:number; vx:number; vy:number; life:number; max:number; size:number; hue:number; alpha:number }
+
+function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }: LivePowerCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const valuesRef = useRef({ bluePower, redPower, winningSide, impactSide, beat })
+  valuesRef.current = { bluePower, redPower, winningSide, impactSide, beat }
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const stage = canvas?.parentElement
+    const ctx = canvas?.getContext('2d', { alpha: true })
+    if (!canvas || !stage || !ctx) return
+    let raf = 0
+    let width = 0
+    let height = 0
+    let start = performance.now()
+    let last = start
+    const particles: LiveParticle[] = []
+    const resize = () => {
+      const rect = stage.getBoundingClientRect()
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      width = Math.max(1, rect.width)
+      height = Math.max(1, rect.height)
+      canvas.width = Math.round(width * dpr)
+      canvas.height = Math.round(height * dpr)
+      canvas.style.width = `${width}px`
+      canvas.style.height = `${height}px`
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    }
+    resize()
+    const observer = new ResizeObserver(resize)
+    observer.observe(stage)
+
+    const rand = (min:number,max:number) => min + Math.random() * (max-min)
+    const hexRgb = (hex:string) => {
+      const raw = hex.replace('#','')
+      const full = raw.length === 3 ? raw.split('').map(v=>v+v).join('') : raw
+      const n = parseInt(full,16)
+      return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 }
+    }
+    const rgba = (hex:string,a:number) => {
+      const c=hexRgb(hex)
+      return `rgba(${c.r},${c.g},${c.b},${Math.max(0,Math.min(1,a))})`
+    }
+    const addBurst = (x:number,y:number,color:string,count:number,force:number) => {
+      const hue = (() => { const c=hexRgb(color); return c.r>c.g && c.r>c.b ? 20 : c.b>c.r ? 205 : 145 })()
+      for(let i=0;i<count;i++){
+        const angle=rand(0,Math.PI*2), speed=rand(force*.25,force)
+        particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:rand(.35,.9),max:.9,size:rand(1.2,4.5),hue,alpha:rand(.5,1)})
+      }
+    }
+    const drawOrb = (x:number,y:number,r:number,color:string,power:Power,t:number,alpha=1) => {
+      if(r<=0) return
+      ctx.save()
+      ctx.globalAlpha=alpha
+      const glow=ctx.createRadialGradient(x-r*.2,y-r*.2,r*.04,x,y,r*1.8)
+      glow.addColorStop(0,'rgba(255,255,255,1)')
+      glow.addColorStop(.12,rgba(color,.98))
+      glow.addColorStop(.42,rgba(color,.56))
+      glow.addColorStop(1,rgba(color,0))
+      ctx.fillStyle=glow;ctx.beginPath();ctx.arc(x,y,r*1.8,0,Math.PI*2);ctx.fill()
+      ctx.shadowColor=color;ctx.shadowBlur=r*1.4
+      ctx.fillStyle=rgba(color,.94);ctx.beginPath();ctx.arc(x,y,r*.62,0,Math.PI*2);ctx.fill()
+      ctx.shadowBlur=0
+      ctx.fillStyle='rgba(255,255,255,.92)';ctx.beginPath();ctx.arc(x-r*.15,y-r*.17,r*.2,0,Math.PI*2);ctx.fill()
+      ctx.strokeStyle=rgba(color,.9);ctx.lineWidth=Math.max(1,r*.07)
+      ctx.beginPath();ctx.ellipse(x,y,r*1.1,r*.55,t*.9,0,Math.PI*2);ctx.stroke()
+      // Individual live geometry gives each power family its own silhouette.
+      if(power.type==='LIGHTNING'){
+        ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=Math.max(2,r*.12);ctx.beginPath()
+        ctx.moveTo(x-r*.9,y);ctx.lineTo(x-r*.35,y-r*.55);ctx.lineTo(x-r*.05,y+r*.12);ctx.lineTo(x+r*.25,y-r*.45);ctx.lineTo(x+r*.8,y);ctx.stroke()
+      } else if(power.type==='FIRE'){
+        for(let k=0;k<3;k++){const a=t*2+k*2.1;ctx.fillStyle=rgba(k===1?'#fff1b0':color,.7);ctx.beginPath();ctx.ellipse(x+Math.cos(a)*r*.35,y+Math.sin(a)*r*.35,r*.18,r*.58,a,0,Math.PI*2);ctx.fill()}
+      } else if(power.type==='ICE'){
+        ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=Math.max(1,r*.08)
+        for(let k=0;k<6;k++){const a=k*Math.PI/3+t*.25;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(a)*r*.95,y+Math.sin(a)*r*.95);ctx.stroke()}
+      } else if(power.type==='WATER'){
+        ctx.strokeStyle=rgba('#d8f7ff',.9);ctx.lineWidth=Math.max(2,r*.12);ctx.beginPath();ctx.ellipse(x,y,r*.95,r*.42,t*1.7,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.ellipse(x,y,r*.62,r*.26,-t*1.5,0,Math.PI*2);ctx.stroke()
+      } else if(power.type==='SHADOW'){
+        ctx.strokeStyle=rgba('#d7c0ff',.85);ctx.lineWidth=Math.max(2,r*.1);ctx.beginPath();ctx.arc(x,y,r*.8,t,t+Math.PI*1.5);ctx.stroke()
+      } else if(power.type==='SOLAR'){
+        ctx.strokeStyle='rgba(255,255,220,.95)';ctx.lineWidth=Math.max(1,r*.07)
+        for(let k=0;k<12;k++){const a=k*Math.PI/6;ctx.beginPath();ctx.moveTo(x+Math.cos(a)*r*.8,y+Math.sin(a)*r*.8);ctx.lineTo(x+Math.cos(a)*r*1.25,y+Math.sin(a)*r*1.25);ctx.stroke()}
+      } else if(power.type==='PLASMA'){
+        ctx.strokeStyle=rgba('#ffffff',.8);ctx.lineWidth=Math.max(1,r*.06);ctx.beginPath();ctx.arc(x,y,r*.72,t,t+Math.PI*1.6);ctx.stroke()
+      } else if(power.type==='SHIELD'){
+        ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=Math.max(2,r*.09);ctx.beginPath()
+        ctx.moveTo(x,y-r*.95);ctx.lineTo(x+r*.78,y-r*.55);ctx.lineTo(x+r*.66,y+r*.38);ctx.lineTo(x,y+r*.95);ctx.lineTo(x-r*.66,y+r*.38);ctx.lineTo(x-r*.78,y-r*.55);ctx.closePath();ctx.stroke()
+        ctx.fillStyle=rgba(power.color,.18);ctx.fill()
+      } else if(power.type==='HEAL'){
+        ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=Math.max(3,r*.18);ctx.lineCap='round'
+        ctx.beginPath();ctx.moveTo(x-r*.45,y);ctx.lineTo(x+r*.45,y);ctx.moveTo(x,y-r*.45);ctx.lineTo(x,y+r*.45);ctx.stroke()
+        ctx.strokeStyle=rgba(power.color,.8);ctx.lineWidth=Math.max(1,r*.07);ctx.beginPath();ctx.arc(x,y,r*1.15,-t,t+Math.PI*1.7);ctx.stroke()
+      } else if(power.type==='WIND'){
+        ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=Math.max(2,r*.1)
+        for(let k=0;k<3;k++){ctx.beginPath();ctx.arc(x-r*.25,y+(k-1)*r*.28,r*.75,-.8+t*.25,.8+t*.25);ctx.stroke()}
+      } else if(power.type==='IMPACT' || power.type==='SPEED'){
+        ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=Math.max(2,r*.1)
+        for(let k=0;k<8;k++){const a=k*Math.PI/4+t;ctx.beginPath();ctx.moveTo(x+Math.cos(a)*r*.25,y+Math.sin(a)*r*.25);ctx.lineTo(x+Math.cos(a)*r*1.15,y+Math.sin(a)*r*1.15);ctx.stroke()}
+      } else {
+        ctx.strokeStyle=rgba('#ffffff',.78);ctx.lineWidth=Math.max(1,r*.07);ctx.beginPath();ctx.arc(x,y,r*.8,-t,t+Math.PI);ctx.stroke()
+      }
+      ctx.restore()
+    }
+    const drawTrail = (x1:number,y1:number,x2:number,y2:number,color:string,power:Power,alpha:number) => {
+      const dx=x2-x1,dy=y2-y1
+      const grad=ctx.createLinearGradient(x1,y1,x2,y2)
+      grad.addColorStop(0,rgba(color,0))
+      grad.addColorStop(.45,rgba(color,.42*alpha))
+      grad.addColorStop(1,rgba('#ffffff',.9*alpha))
+      ctx.save()
+      ctx.lineCap='round'
+      ctx.strokeStyle=grad
+      ctx.lineWidth=power.type==='WIND'?5:Math.max(4,width*.006)
+      ctx.shadowColor=color;ctx.shadowBlur=22
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(x1+dx*.48,y1+dy*.48-8,x2,y2);ctx.stroke()
+      ctx.shadowBlur=0
+      ctx.strokeStyle=rgba(color,.4*alpha);ctx.lineWidth=Math.max(12,width*.018)
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()
+      ctx.restore()
+    }
+    const drawImpact = (x:number,y:number,power:Power,t:number) => {
+      const progress=Math.min(1,t)
+      const radius=12+progress*width*.17
+      ctx.save();ctx.globalAlpha=1-progress
+      const g=ctx.createRadialGradient(x,y,1,x,y,radius)
+      g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.18,rgba(power.color,.95));g.addColorStop(1,rgba(power.color,0))
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill()
+      for(let ring=0;ring<3;ring++){ctx.strokeStyle=rgba(ring===0?'#ffffff':power.color,1-progress);ctx.lineWidth=4-ring;ctx.beginPath();ctx.arc(x,y,radius*(.4+ring*.25),0,Math.PI*2);ctx.stroke()}
+      ctx.restore()
+    }
+
+    const frame=(now:number)=>{
+      const dt=Math.min(.04,(now-last)/1000);last=now
+      const elapsed=(now-start)/1000
+      const current=valuesRef.current
+      ctx.clearRect(0,0,width,height)
+      const midX=width*.5, midY=height*.39
+      const blueStart={x:width*.315,y:height*.36}
+      const redStart={x:width*.685,y:height*.36}
+      const target=impactSide==='blue'?{x:width*.205,y:height*.48}:{x:width*.795,y:height*.48}
+      const source=winningSide==='blue'?blueStart:redStart
+      const winnerPower=winningSide==='blue'?bluePower:redPower
+      const loserPower=winningSide==='blue'?redPower:bluePower
+      const loserStart=winningSide==='blue'?redStart:blueStart
+      const phaseProgress=(a:number,b:number)=>Math.max(0,Math.min(1,(elapsed-a)/(b-a)))
+      const ease=(v:number)=>v<.5?4*v*v*v:1-Math.pow(-2*v+2,3)/2
+      const wind=phaseProgress(1.05,2.45)
+      const release=phaseProgress(2.45,4.25)
+      const collide=phaseProgress(4.25,5.15)
+      const breakthrough=phaseProgress(5.15,6.1)
+      const impact=phaseProgress(6.25,7.2)
+
+      // Energy accumulates visibly at both hands before anything is fired.
+      if(elapsed<2.45){
+        const charge=Math.min(1,elapsed/2.45)
+        drawOrb(blueStart.x,blueStart.y,8+charge*18,bluePower.color,bluePower,elapsed,charge)
+        drawOrb(redStart.x,redStart.y,8+charge*18,redPower.color,redPower,elapsed,charge)
+        for(let i=0;i<2;i++){
+          const origin=i===0?blueStart:redStart
+          const power=i===0?bluePower:redPower
+          if(Math.random()<.65){const a=rand(0,Math.PI*2),r=rand(14,36);particles.push({x:origin.x+Math.cos(a)*r,y:origin.y+Math.sin(a)*r,vx:Math.cos(a)*rand(5,26),vy:Math.sin(a)*rand(5,26),life:.45,max:.45,size:rand(1,3),hue:power.type==='FIRE'?25:195,alpha:.9})}
+        }
+      }
+
+      // The two real projectiles travel to a centre clash; no power-art images.
+      if(elapsed>=2.45 && elapsed<5.15){
+        const p=release
+        const e=ease(p)
+        const bx=blueStart.x+(midX-blueStart.x)*e
+        const rx=redStart.x+(midX-redStart.x)*e
+        const by=blueStart.y+(midY-blueStart.y)*e+Math.sin(p*Math.PI)*-height*.035
+        const ry=redStart.y+(midY-redStart.y)*e+Math.sin(p*Math.PI)*-height*.035
+        drawTrail(blueStart.x,blueStart.y,bx,by,bluePower.color,bluePower,1)
+        drawTrail(redStart.x,redStart.y,rx,ry,redPower.color,redPower,1)
+        drawOrb(bx,by,12+Math.sin(now*.012)*3,bluePower.color,bluePower,elapsed)
+        drawOrb(rx,ry,12+Math.sin(now*.012+1)*3,redPower.color,redPower,elapsed)
+        if(elapsed>4.25){
+          const pulse=1+Math.sin(now*.018)*.14
+          ctx.save();ctx.globalAlpha=1-collide*.55;ctx.strokeStyle='#ffffff';ctx.lineWidth=5;ctx.shadowColor=winnerPower.color;ctx.shadowBlur=32
+          ctx.beginPath();ctx.arc(midX,midY,18*pulse+collide*width*.09,0,Math.PI*2);ctx.stroke();ctx.restore()
+        }
+      }
+
+      // Losing energy collapses; the winning projectile surges through the clash.
+      if(elapsed>=5.15 && elapsed<7.2){
+        const p=ease(breakthrough)
+        const x=midX+(target.x-midX)*p
+        const y=midY+(target.y-midY)*p
+        const loserFade=1-breakthrough
+        drawTrail(midX,midY,x,y,winnerPower.color,winnerPower,Math.max(.08,breakthrough))
+        drawOrb(x,y,18+breakthrough*12,winnerPower.color,winnerPower,elapsed)
+        drawOrb(midX,midY,Math.max(1,26*loserFade),loserPower.color,loserPower,elapsed,loserFade)
+      }
+
+      if(elapsed>=6.25 && elapsed<7.3) drawImpact(target.x,target.y,winnerPower,impact)
+
+      // Procedural sparks and motes: each particle has its own velocity, drag and lifetime.
+      for(let i=particles.length-1;i>=0;i--){
+        const q=particles[i];q.life-=dt
+        if(q.life<=0){particles.splice(i,1);continue}
+        q.x+=q.vx*dt;q.y+=q.vy*dt;q.vx*=Math.pow(.12,dt);q.vy=q.vy*.985+18*dt
+        const alpha=(q.life/q.max)*q.alpha
+        ctx.fillStyle=`hsla(${q.hue},100%,${q.hue===25?65:78}%,${alpha})`
+        ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=q.size*3
+        ctx.beginPath();ctx.arc(q.x,q.y,q.size*(.35+.65*q.life/q.max),0,Math.PI*2);ctx.fill()
+      }
+      ctx.shadowBlur=0
+
+      // Continuous sparks are emitted along the advancing winning bolt.
+      if(elapsed>2.45 && elapsed<7.2 && Math.random()<.9){
+        const t=elapsed<5.15?release:breakthrough
+        const x=elapsed<5.15?source.x+(midX-source.x)*ease(t):midX+(target.x-midX)*ease(t)
+        const y=elapsed<5.15?source.y+(midY-source.y)*ease(t):midY+(target.y-midY)*ease(t)
+        addBurst(x+rand(-8,8),y+rand(-8,8),winnerPower.color,2,70)
+      }
+      raf=requestAnimationFrame(frame)
+    }
+    raf=requestAnimationFrame(frame)
+    return ()=>{cancelAnimationFrame(raf);observer.disconnect()}
+  }, [bluePower.name, redPower.name, winningSide, impactSide])
+
+  return <canvas ref={canvasRef} className="gc-live-power-canvas" aria-hidden="true" />
 }

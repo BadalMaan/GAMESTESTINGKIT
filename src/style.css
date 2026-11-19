@@ -1194,3 +1194,28 @@ body{background:var(--bg);color:var(--text)}
   .gc-stage.is-clashing .gc-action-overlay,
   .gc-stage.is-clashing .gc-hand-charge {animation-duration:.08ms!important;transition:none!important}
 }
+
+
+/* REAL LIVE POWER ENGINE: all projectile bodies, trails, particles and impacts
+   are drawn every animation frame on Canvas. No power-effect PNGs are rendered. */
+.gc-live-power-canvas {
+  position:absolute;
+  z-index:8;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  pointer-events:none;
+  overflow:hidden;
+  mix-blend-mode:screen;
+}
+.gc-stage.is-clashing .gc-blast,
+.gc-stage.is-clashing .gc-hand-charge,
+.gc-stage.is-clashing .gc-support-aura,
+.gc-stage.is-clashing .gc-action-overlay { display:none!important; }
+.gc-stage.is-clashing .gc-fighter { z-index:3; }
+.gc-stage.is-clashing .gc-impact { z-index:9; }
+.gc-stage.is-clashing .gc-damage-number { z-index:10; }
+@media(prefers-reduced-motion:reduce) {
+  .gc-live-power-canvas { opacity:.9; }
+}
