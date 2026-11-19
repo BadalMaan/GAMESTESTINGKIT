@@ -1207,7 +1207,8 @@ body{background:var(--bg);color:var(--text)}
   display:block;
   pointer-events:none;
   overflow:hidden;
-  mix-blend-mode:screen;
+  mix-blend-mode:normal !important;
+  opacity:1 !important;
 }
 .gc-stage.is-clashing .gc-blast,
 .gc-stage.is-clashing .gc-hand-charge,
@@ -1274,7 +1275,7 @@ body{background:var(--bg);color:var(--text)}
 .gc-stage.is-clashing .gc-breakthrough,
 .gc-stage.is-clashing .gc-target-burst,
 .gc-stage.is-clashing .gc-hit-spark { display:none !important; animation:none !important; }
-.gc-live-power-canvas { z-index:7 !important; mix-blend-mode:screen; }
+.gc-live-power-canvas { z-index:7 !important; mix-blend-mode:normal !important; opacity:1 !important; filter:none !important; }
 .gc-stage.is-clashing .gc-fighter { z-index:5 !important; }
 .gc-stage.is-clashing .gc-impact { z-index:8 !important; }
 .gc-stage.is-clashing .gc-damage-number { z-index:10 !important; }

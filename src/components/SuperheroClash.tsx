@@ -319,7 +319,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       ctx.save()
       ctx.globalAlpha=alpha
       const glow=ctx.createRadialGradient(x-r*.2,y-r*.2,r*.04,x,y,r*1.8)
-      glow.addColorStop(0,'rgba(255,255,255,1)')
+      glow.addColorStop(0,rgba(color,.92))
       glow.addColorStop(.12,rgba(color,.98))
       glow.addColorStop(.42,rgba(color,.56))
       glow.addColorStop(1,rgba(color,0))
@@ -327,7 +327,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       ctx.shadowColor=color;ctx.shadowBlur=r*1.4
       ctx.fillStyle=rgba(color,.94);ctx.beginPath();ctx.arc(x,y,r*.62,0,Math.PI*2);ctx.fill()
       ctx.shadowBlur=0
-      ctx.fillStyle='rgba(255,255,255,.92)';ctx.beginPath();ctx.arc(x-r*.15,y-r*.17,r*.2,0,Math.PI*2);ctx.fill()
+      ctx.fillStyle=rgba(color,.72);ctx.beginPath();ctx.arc(x-r*.15,y-r*.17,r*.16,0,Math.PI*2);ctx.fill()
       ctx.strokeStyle=rgba(color,.9);ctx.lineWidth=Math.max(1,r*.07)
       ctx.beginPath();ctx.ellipse(x,y,r*1.1,r*.55,t*.9,0,Math.PI*2);ctx.stroke()
       // Individual live geometry gives each power family its own silhouette.
@@ -372,7 +372,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       const grad=ctx.createLinearGradient(x1,y1,x2,y2)
       grad.addColorStop(0,rgba(color,0))
       grad.addColorStop(.45,rgba(color,.42*alpha))
-      grad.addColorStop(1,rgba('#ffffff',.9*alpha))
+      grad.addColorStop(1,rgba(color,.96*alpha))
       ctx.save()
       ctx.lineCap='round'
       ctx.strokeStyle=grad
@@ -389,8 +389,8 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       const r=Math.max(12,width*.018)*scale
       ctx.save()
       ctx.translate(x,y);ctx.rotate(dir<0?Math.PI:0)
-      ctx.globalCompositeOperation='lighter'
-      ctx.shadowColor=power.color;ctx.shadowBlur=24*scale
+      ctx.globalCompositeOperation='source-over'
+      ctx.shadowColor=power.color;ctx.shadowBlur=18*scale
       if(power.name==='TIDAL DRAGON'){
         // Large, unmistakable water-dragon projectile: long serpentine body,
         // swept horns, jaw, eye, whiskers and layered water mane.
@@ -400,8 +400,8 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         // Long coiling body behind the head
         for(let k=0;k<5;k++){
           const yy=(k-2)*r*.22
-          ctx.strokeStyle=rgba(k%2?'#eaffff':'#2aaee8',.62-k*.07)
-          ctx.lineWidth=r*(.20-k*.018)
+          ctx.strokeStyle=rgba(k%2?'#69ddff':'#087fc4',.88-k*.055)
+          ctx.lineWidth=r*(.24-k*.018)
           ctx.beginPath()
           ctx.moveTo(-r*3.9,yy+wave)
           ctx.bezierCurveTo(-r*2.9,yy-r*1.15+Math.sin(t*3+k)*r*.22,-r*1.7,yy+r*1.15,r*.05,yy-r*.18)
@@ -409,7 +409,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         }
         // Dragon head silhouette facing travel direction
         const head=ctx.createLinearGradient(-r*1.4,-r*.8,r*2.2,r*.5)
-        head.addColorStop(0,'#187dbb');head.addColorStop(.48,'#8cecff');head.addColorStop(1,'#f2ffff')
+        head.addColorStop(0,'#07558f');head.addColorStop(.38,'#087fc4');head.addColorStop(.72,'#25c4ed');head.addColorStop(1,'#8cecff')
         ctx.fillStyle=head;ctx.beginPath()
         ctx.moveTo(-r*1.65,-r*.45);ctx.quadraticCurveTo(-r*.8,-r*1.35,r*.15,-r*.82)
         ctx.lineTo(r*.8,-r*1.05);ctx.lineTo(r*1.45,-r*.62)
@@ -417,7 +417,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         ctx.quadraticCurveTo(r*.85,r*.92,-r*.05,r*.65)
         ctx.lineTo(-r*.85,r*.95);ctx.lineTo(-r*1.45,r*.42);ctx.closePath();ctx.fill()
         // Horns, crest and fins
-        ctx.fillStyle='#d9fbff'
+        ctx.fillStyle='#38c9f2'
         ctx.beginPath();ctx.moveTo(-r*.75,-r*.48);ctx.lineTo(-r*1.45,-r*1.62);ctx.lineTo(-r*.15,-r*.9);ctx.closePath();ctx.fill()
         ctx.beginPath();ctx.moveTo(r*.05,-r*.65);ctx.lineTo(r*.45,-r*1.55);ctx.lineTo(r*.72,-r*.48);ctx.closePath();ctx.fill()
         ctx.fillStyle='#36b9ec'
@@ -425,12 +425,12 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         // Eye, nostril and jaw highlight
         ctx.fillStyle='#073c69';ctx.beginPath();ctx.arc(r*.95,-r*.36,r*.105,0,Math.PI*2);ctx.fill()
         ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(r*.98,-r*.39,r*.035,0,Math.PI*2);ctx.fill()
-        ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=Math.max(2,r*.055)
+        ctx.strokeStyle='rgba(190,246,255,.92)';ctx.lineWidth=Math.max(2,r*.045)
         ctx.beginPath();ctx.moveTo(r*.55,r*.24);ctx.quadraticCurveTo(r*1.25,r*.58,r*1.92,r*.18)
         ctx.moveTo(-r*.55,r*.28);ctx.quadraticCurveTo(-r*1.65,r*1.05,-r*2.55,r*.55)
         ctx.moveTo(-r*.5,-r*.25);ctx.quadraticCurveTo(-r*1.55,-r*1.0,-r*2.35,-r*.65);ctx.stroke()
         // Scale glints
-        for(let k=0;k<8;k++){const xx=-r*1.1+k*r*.25;ctx.fillStyle='rgba(255,255,255,.52)';ctx.beginPath();ctx.arc(xx,Math.sin(k*1.8+t*3)*r*.2,r*.045,0,Math.PI*2);ctx.fill()}
+        for(let k=0;k<8;k++){const xx=-r*1.1+k*r*.25;ctx.fillStyle='rgba(190,246,255,.72)';ctx.beginPath();ctx.arc(xx,Math.sin(k*1.8+t*3)*r*.2,r*.045,0,Math.PI*2);ctx.fill()}
         ctx.restore()
       } else if(power.name==='METEOR KICK'){
         // A flaming meteor-shaped kick projectile; deliberately not an arrow/beam.
@@ -447,10 +447,10 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
           ctx.stroke()
         }
         const meteor=ctx.createRadialGradient(-r*.2,-r*.15,r*.08,0,0,r*1.35)
-        meteor.addColorStop(0,'#ffffff');meteor.addColorStop(.18,'#fff4c5')
+        meteor.addColorStop(0,'#fff0c4');meteor.addColorStop(.18,'#ffd16a')
         meteor.addColorStop(.43,'#ffb044');meteor.addColorStop(.72,'#ff5425');meteor.addColorStop(1,'rgba(255,65,20,0)')
         ctx.fillStyle=meteor;ctx.beginPath();ctx.ellipse(0,0,r*1.2,r*.72,-.12,0,Math.PI*2);ctx.fill()
-        ctx.fillStyle='#fff8dc';ctx.beginPath();ctx.ellipse(r*.15,-r*.04,r*.63,r*.29,-.12,0,Math.PI*2);ctx.fill()
+        ctx.fillStyle='#ffbd55';ctx.beginPath();ctx.ellipse(r*.15,-r*.04,r*.63,r*.29,-.12,0,Math.PI*2);ctx.fill()
         // Chunky burning fragments orbit the meteor
         for(let k=0;k<7;k++){const a=t*2.3+k*Math.PI*2/7;ctx.fillStyle=k%2?'#ff6b2e':'#ffe6a0';ctx.beginPath();ctx.arc(Math.cos(a)*r*(1.1+(k%3)*.16),Math.sin(a)*r*.72, r*(.07+(k%2)*.035),0,Math.PI*2);ctx.fill()}
         ctx.restore()
@@ -461,8 +461,19 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         for(let k=0;k<14;k++){const a=k*Math.PI/7+t*.4;ctx.save();ctx.rotate(a);ctx.fillStyle=k%2?'rgba(130,226,255,.8)':'rgba(255,255,255,.95)';ctx.beginPath();ctx.moveTo(r*.35,-r*.12);ctx.lineTo(r*2.1,0);ctx.lineTo(r*.35,r*.12);ctx.closePath();ctx.fill();ctx.restore()}
         ctx.strokeStyle='rgba(225,252,255,.9)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r*1.1,t,t+Math.PI*1.8);ctx.stroke()
       } else if(power.name==='OCEAN SPIRAL'){
-        for(let k=0;k<4;k++){ctx.strokeStyle=rgba(k%2?'#efffff':power.color,.8);ctx.lineWidth=r*.22;ctx.beginPath();ctx.arc(0,0,r*(.45+k*.32),t+k*.8,t+k*.8+Math.PI*1.55);ctx.stroke()}
-        ctx.fillStyle='rgba(235,255,255,.85)';ctx.beginPath();ctx.arc(r*.25,0,r*.22,0,Math.PI*2);ctx.fill()
+        // A readable rotating water vortex: deep-blue core, cyan spiral bands and spray.
+        const vortex=ctx.createRadialGradient(0,0,r*.08,0,0,r*1.65)
+        vortex.addColorStop(0,'#063d75');vortex.addColorStop(.28,'#087fc4');vortex.addColorStop(.62,'#20bde9');vortex.addColorStop(1,'rgba(35,190,238,0)')
+        ctx.fillStyle=vortex;ctx.beginPath();ctx.arc(0,0,r*1.65,0,Math.PI*2);ctx.fill()
+        for(let k=0;k<5;k++){
+          ctx.save();ctx.rotate(t*(k%2?1.25:-.92)+k*.72)
+          ctx.strokeStyle=rgba(k%2?'#39d6ff':'#087fc4',.92-k*.09);ctx.lineWidth=r*(.10-k*.009);ctx.lineCap='round'
+          ctx.beginPath();ctx.ellipse(0,0,r*(.48+k*.22),r*(.22+k*.07),-.24,-Math.PI*.15,Math.PI*1.55);ctx.stroke()
+          ctx.restore()
+        }
+        ctx.fillStyle='#07558f';ctx.beginPath();ctx.arc(r*.12,0,r*.34,0,Math.PI*2);ctx.fill()
+        ctx.fillStyle='rgba(178,245,255,.9)';ctx.beginPath();ctx.arc(r*.22,-r*.1,r*.09,0,Math.PI*2);ctx.fill()
+        for(let k=0;k<9;k++){const a=t*1.7+k*Math.PI*2/9;ctx.fillStyle=rgba('#66e5ff',.82);ctx.beginPath();ctx.arc(Math.cos(a)*r*(1.05+(k%3)*.13),Math.sin(a)*r*(.62+(k%2)*.1),r*.055,0,Math.PI*2);ctx.fill()}
       } else if(power.type==='FIRE'){
         // A pointed, layered flame mass with a turbulent tail, not a glowing line.
         for(let k=0;k<7;k++){
@@ -497,7 +508,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
           ctx.beginPath();ctx.moveTo(-r*2,off+Math.sin(t*5+k)*r*.2)
           ctx.bezierCurveTo(-r,off-r*.9,r*.2,off+r*.9,r*2.2,off+Math.sin(t*4+k)*r*.2);ctx.stroke()
         }
-        ctx.fillStyle='rgba(235,252,255,.8)';ctx.beginPath();ctx.ellipse(r*.25,0,r*.7,r*.35,0,0,Math.PI*2);ctx.fill()
+        const waterCore=ctx.createRadialGradient(r*.12,-r*.08,r*.04,r*.12,0,r*.92);waterCore.addColorStop(0,'rgba(224,250,255,.72)');waterCore.addColorStop(.28,'rgba(51,198,242,.92)');waterCore.addColorStop(1,'rgba(5,91,157,.08)');ctx.fillStyle=waterCore;ctx.beginPath();ctx.ellipse(r*.25,0,r*.78,r*.42,0,0,Math.PI*2);ctx.fill()
       } else if(power.type==='PLASMA'){
         // Dense plasma nucleus with rotating ion bands and a hot white centre.
         const plasma=ctx.createRadialGradient(-r*.18,-r*.12,1,0,0,r*2.05)
@@ -545,24 +556,38 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
     }
     const drawPowerWake = (x1:number,y1:number,x2:number,y2:number,power:Power,t:number) => {
       const dx=x2-x1,dy=y2-y1,dir=dx>=0?1:-1
+      // Contrast rail: a restrained navy edge keeps every coloured power readable
+      // against the user's bright original arena without changing the background.
+      ctx.save()
+      ctx.globalCompositeOperation='source-over'
+      ctx.lineCap='round'
+      ctx.strokeStyle='rgba(3,25,54,.34)'
+      ctx.lineWidth=Math.max(10,width*.024)
+      ctx.shadowColor='rgba(2,18,42,.24)'
+      ctx.shadowBlur=9
+      ctx.beginPath()
+      ctx.moveTo(x1,y1)
+      ctx.quadraticCurveTo(x1+dx*.5,y1+dy*.5+Math.sin(t*4)*8,x2,y2)
+      ctx.stroke()
+      ctx.restore()
       if(power.name==='TIDAL DRAGON'){
         // Broad, readable water wake with multiple rolling ribbons and bubbles.
-        ctx.save();ctx.globalCompositeOperation='screen';ctx.lineCap='round'
+        ctx.save();ctx.globalCompositeOperation='source-over';ctx.lineCap='round'
         for(let k=0;k<7;k++){
           const offset=(k-3)*7
-          ctx.strokeStyle=rgba(k%2?'#e8fdff':'#39bff2',.68-k*.055)
-          ctx.lineWidth=5+(k%3)*3
-          ctx.shadowColor='#53d7ff';ctx.shadowBlur=13
+          ctx.strokeStyle=rgba(k%2?'#38cfff':'#087fc4',.78-k*.055)
+          ctx.lineWidth=8+(k%3)*3
+          ctx.shadowColor='#24bfff';ctx.shadowBlur=10
           ctx.beginPath();ctx.moveTo(x1,y1+offset)
           ctx.bezierCurveTo(x1+dx*.24,y1+dy*.24+Math.sin(t*5+k)*24+offset,
             x1+dx*.72,y1+dy*.72+Math.cos(t*4+k)*22-offset*.5,x2,y2+offset*.35)
           ctx.stroke()
         }
-        for(let k=0;k<9;k++){const q=(k+1)/10;const bx=x1+dx*q,by=y1+dy*q+Math.sin(t*4+k)*15;ctx.fillStyle='rgba(225,251,255,.8)';ctx.beginPath();ctx.arc(bx,by,2+(k%3),0,Math.PI*2);ctx.fill()}
+        for(let k=0;k<9;k++){const q=(k+1)/10;const bx=x1+dx*q,by=y1+dy*q+Math.sin(t*4+k)*15;ctx.fillStyle='rgba(88,218,255,.92)';ctx.beginPath();ctx.arc(bx,by,2+(k%3),0,Math.PI*2);ctx.fill()}
         ctx.restore()
       } else if(power.name==='METEOR KICK'){
         // Fiery comet wake with turbulent tongues, sparks and a smoky core.
-        ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round'
+        ctx.save();ctx.globalCompositeOperation='source-over';ctx.lineCap='round'
         for(let k=0;k<8;k++){
           const off=(k-3.5)*5, wave=Math.sin(t*12+k*1.6)*17
           ctx.strokeStyle=rgba(k%2?'#ffe8ad':'#ff5727',.78-k*.055)
@@ -589,7 +614,7 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         ctx.restore()
       } else if(power.type==='WATER'){
         ctx.save();ctx.lineCap='round'
-        for(let k=0;k<4;k++){ctx.strokeStyle=rgba(k%2?'#efffff':power.color,.55);ctx.lineWidth=4+k*2;ctx.beginPath();ctx.moveTo(x1,y1+(k-1.5)*7);ctx.bezierCurveTo(x1+dx*.3,y1+dy*.3+Math.sin(t*5+k)*28,x1+dx*.7,y1+dy*.7+Math.cos(t*5+k)*28,x2,y2+(k-1.5)*5);ctx.stroke()}
+        for(let k=0;k<4;k++){ctx.strokeStyle=rgba(k%2?'#4bd8ff':power.color,.78);ctx.lineWidth=7+k*2;ctx.beginPath();ctx.moveTo(x1,y1+(k-1.5)*7);ctx.bezierCurveTo(x1+dx*.3,y1+dy*.3+Math.sin(t*5+k)*28,x1+dx*.7,y1+dy*.7+Math.cos(t*5+k)*28,x2,y2+(k-1.5)*5);ctx.stroke()}
         ctx.restore()
       } else if(power.type==='ICE'){
         ctx.save();ctx.strokeStyle=rgba('#dffaff',.8);ctx.lineWidth=3;ctx.setLineDash([8,7]);ctx.lineDashOffset=-t*45;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore()
@@ -597,23 +622,23 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         ctx.save();ctx.strokeStyle=rgba(power.color,.45);ctx.lineWidth=width*.035;ctx.shadowColor=power.color;ctx.shadowBlur=24;ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo((x1+x2)/2,(y1+y2)/2+Math.sin(t*3)*30,x2,y2);ctx.stroke();ctx.restore()
       } else if(power.type==='SOLAR'){
         // A broad, layered solar stream with visible rays and a hot travelling centre.
-        ctx.save();ctx.lineCap='round';ctx.globalCompositeOperation='lighter'
+        ctx.save();ctx.lineCap='round';ctx.globalCompositeOperation='source-over'
         const grad=ctx.createLinearGradient(x1,y1,x2,y2);grad.addColorStop(0,rgba(power.color,0));grad.addColorStop(.48,rgba(power.color,.2));grad.addColorStop(1,'rgba(255,255,230,.95)')
         for(let k=0;k<5;k++){ctx.strokeStyle=k===2?grad:rgba(k%2?'#fff4bd':power.color,.42);ctx.lineWidth=k===2?width*.055:width*(.012+k*.002);ctx.shadowColor=power.color;ctx.shadowBlur=22;ctx.beginPath();ctx.moveTo(x1,y1+(k-2)*5);ctx.bezierCurveTo(x1+dx*.32,y1+dy*.32+Math.sin(t*7+k)*18,x1+dx*.7,y1+dy*.7+Math.cos(t*6+k)*16,x2,y2+(k-2)*3);ctx.stroke()}
         ctx.restore()
       } else if(power.type==='PLASMA'){
         // Plasma has a wide ion wake, not a thin straight beam.
-        ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round'
+        ctx.save();ctx.globalCompositeOperation='source-over';ctx.lineCap='round'
         for(let k=0;k<6;k++){const wave=Math.sin(t*10+k*1.35)*12;ctx.strokeStyle=rgba(k%2?'#ffffff':power.color,.68-k*.07);ctx.lineWidth=width*(k===2?.024:.009);ctx.shadowColor=power.color;ctx.shadowBlur=18;ctx.beginPath();ctx.moveTo(x1,y1+(k-2.5)*7);ctx.bezierCurveTo(x1+dx*.28,y1+dy*.28+wave,x1+dx*.72,y1+dy*.72-wave*.65,x2,y2+(k-2.5)*5);ctx.stroke()}
         ctx.restore()
       } else if(power.type==='SHADOW'){
-        ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round'
+        ctx.save();ctx.globalCompositeOperation='source-over';ctx.lineCap='round'
         for(let k=0;k<4;k++){ctx.strokeStyle=rgba(k%2?'#e8d8ff':power.color,.38);ctx.lineWidth=width*(.018+k*.004);ctx.shadowColor=power.color;ctx.shadowBlur=25;ctx.beginPath();ctx.moveTo(x1,y1+(k-1.5)*9);ctx.bezierCurveTo(x1+dx*.25,y1+dy*.25+Math.sin(t*5+k)*25,x1+dx*.72,y1+dy*.72+Math.cos(t*5+k)*22,x2,y2);ctx.stroke()}
         ctx.restore()
       } else {
         // Every remaining power gets a visible tapered, multi-strand wake.
-        ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round'
-        const grad=ctx.createLinearGradient(x1,y1,x2,y2);grad.addColorStop(0,rgba(power.color,0));grad.addColorStop(.55,rgba(power.color,.24));grad.addColorStop(1,rgba('#ffffff',.82))
+        ctx.save();ctx.globalCompositeOperation='source-over';ctx.lineCap='round'
+        const grad=ctx.createLinearGradient(x1,y1,x2,y2);grad.addColorStop(0,rgba(power.color,0));grad.addColorStop(.55,rgba(power.color,.24));grad.addColorStop(1,rgba(power.color,.92))
         for(let k=0;k<5;k++){ctx.strokeStyle=k===2?grad:rgba(power.color,.38-k*.045);ctx.lineWidth=width*(k===2?.045:.009);ctx.shadowColor=power.color;ctx.shadowBlur=17;ctx.beginPath();ctx.moveTo(x1,y1+(k-2)*7);ctx.quadraticCurveTo(x1+dx*.52,y1+dy*.52+Math.sin(t*8+k)*17,x2,y2+(k-2)*4);ctx.stroke()}
         ctx.restore()
         if(Math.random()<.8) addBurst(x2,y2,power.color,3,58)
