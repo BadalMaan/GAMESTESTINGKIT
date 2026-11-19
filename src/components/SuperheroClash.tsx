@@ -179,7 +179,7 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
         <div className="gc-hud-side red"><div><small>PLAYER 2</small><strong>{redDisplayName}</strong></div><div className="gc-health"><i style={{ width: `${redHealth}%` }}/></div><b>{redHealth}%</b></div>
       </div>
 
-      <div className={`gc-stage ${phase === 'clash' ? `is-clashing beat-${clashBeat} dominant-${dominantSide}` : ''} ${phase === 'result' ? `impact-${impactSide}` : ''}`} key={clashId}>
+      <div className={`gc-stage ${phase === 'clash' ? `is-clashing beat-${clashBeat} dominant-${dominantSide}` : ''} ${phase === 'result' ? `impact-${impactSide}` : ''} ${phase === 'finished' ? `is-finished winner-${winner}` : ''}`} key={clashId}>
         <div className="gc-arena-backdrop"><img src="/images/arena-background.png" alt="Grand championship arena"/><div className="gc-arena-vignette"/><div className="gc-floor-ring ring-one"/><div className="gc-floor-ring ring-two"/></div>
         {phase === 'clash' && <>
           {impactSide && <div className={`gc-hit-spark gc-hit-${impactSide}`} aria-hidden="true"/>}
@@ -187,10 +187,10 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
           <div className={`gc-target-burst ${impactSide || 'red'}`} aria-hidden="true" />
           <div className="gc-impact"><i/><b>{clashBeat === 'impact' ? 'DIRECT HIT' : 'CLASH'}</b><i/></div>
         </>}
-        <div className={`gc-fighter blue ${phase === 'clash' ? `blue-attack pose-${poseForPower(bluePower)} ${clashBeat === 'impact' && impactSide === 'blue' ? 'blue-hurt' : ''} ${clashBeat === 'impact' && impactSide === 'blue' && blueHealth - impactDamage <= 0 ? 'blue-fall' : ''}` : phase === 'result' ? `blue-${blueReaction}` : phase === 'finished' && winner === 'red' ? 'blue-fall' : ''}`}>
+        <div className={`gc-fighter blue ${phase === 'clash' ? `blue-attack pose-${poseForPower(bluePower)} ${clashBeat === 'impact' && impactSide === 'blue' ? 'blue-hurt' : ''} ${clashBeat === 'impact' && impactSide === 'blue' && blueHealth - impactDamage <= 0 ? 'blue-fall' : ''}` : phase === 'result' ? `blue-${blueReaction}` : phase === 'finished' ? (winner === 'blue' ? 'gc-champion-fighter' : 'blue-fall gc-defeated-fighter') : ''}`}>
           <img className="gc-base-pose" src={fighterImage('blue', bluePower, blueReaction, phase === 'clash')} alt={`${blueDisplayName} fighter action`} />
         </div>
-        <div className={`gc-fighter red ${phase === 'clash' ? `red-attack pose-${poseForPower(redPower)} ${clashBeat === 'impact' && impactSide === 'red' ? 'red-hurt' : ''} ${clashBeat === 'impact' && impactSide === 'red' && redHealth - impactDamage <= 0 ? 'red-fall' : ''}` : phase === 'result' ? `red-${redReaction}` : phase === 'finished' && winner === 'blue' ? 'red-fall' : ''}`}>
+        <div className={`gc-fighter red ${phase === 'clash' ? `red-attack pose-${poseForPower(redPower)} ${clashBeat === 'impact' && impactSide === 'red' ? 'red-hurt' : ''} ${clashBeat === 'impact' && impactSide === 'red' && redHealth - impactDamage <= 0 ? 'red-fall' : ''}` : phase === 'result' ? `red-${redReaction}` : phase === 'finished' ? (winner === 'red' ? 'gc-champion-fighter' : 'red-fall gc-defeated-fighter') : ''}`}>
           <img className="gc-base-pose" src={fighterImage('red', redPower, redReaction, phase === 'clash')} alt={`${redDisplayName} fighter action`} />
         </div>
         {phase === 'clash' && bluePower && redPower && dominantSide && impactSide && <LivePowerCanvas
@@ -198,7 +198,22 @@ export default function SuperheroClash({ onExit, onWin }: Props) {
         />}
         {phase === 'clash' && clashBeat === 'impact' && impactDamage > 0 && <div className={`gc-damage-number ${impactSide || 'red'}`}>−{impactDamage}</div>}
         {phase === 'result' && <div className="gc-result-banner"><strong>ROUND COMPLETE</strong><span>CHOOSE AGAIN</span></div>}
-      {phase === 'finished' && <div className={`gc-win-celebration ${winner || 'blue'}`} aria-live="assertive"><div className="gc-firework fw-one"/><div className="gc-firework fw-two"/><div className="gc-firework fw-three"/><div className="gc-win-copy"><span>✦ VICTORY ✦</span><strong>{winner === 'blue' ? blueDisplayName : redDisplayName}</strong><b>ARENA CHAMPION</b></div><div className="gc-firework fw-four"/><div className="gc-firework fw-five"/></div>}
+      {phase === 'finished' && <div className={`gc-win-celebration gc-premium-victory ${winner || 'blue'}`} aria-live="assertive">
+        <div className="gc-victory-dim"/>
+        <div className="gc-victory-spotlight"/>
+        <div className="gc-victory-rays"/>
+        <div className="gc-victory-halo halo-outer"/><div className="gc-victory-halo halo-inner"/>
+        <div className="gc-victory-orbit orbit-one"/><div className="gc-victory-orbit orbit-two"/>
+        <div className="gc-victory-confetti confetti-a"/><div className="gc-victory-confetti confetti-b"/><div className="gc-victory-confetti confetti-c"/><div className="gc-victory-confetti confetti-d"/><div className="gc-victory-confetti confetti-e"/><div className="gc-victory-confetti confetti-f"/>
+        <div className="gc-firework fw-one"/><div className="gc-firework fw-two"/><div className="gc-firework fw-three"/><div className="gc-firework fw-four"/><div className="gc-firework fw-five"/>
+        <div className="gc-victory-content">
+          <div className="gc-victory-overline"><i/> THE FINAL BLOW <i/></div>
+          <div className="gc-victory-crest"><div className="gc-crest-ring"><Crown size={42} strokeWidth={1.7}/></div><span>★</span></div>
+          <div className="gc-win-copy"><span>✦ VICTORY ✦</span><strong>{winner === 'blue' ? blueDisplayName : redDisplayName}</strong><b>ARENA CHAMPION</b></div>
+          <div className="gc-victory-subtitle">THE ARENA HAS A NEW LEGEND</div>
+          <div className="gc-victory-sparks"><i/><i/><i/><i/><i/><i/><i/></div>
+        </div>
+      </div>}
       </div>
 
       <div className="gc-turn-status">
@@ -495,10 +510,27 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
       } else if(power.type==='SHADOW'){
         ctx.save();ctx.strokeStyle=rgba(power.color,.45);ctx.lineWidth=width*.035;ctx.shadowColor=power.color;ctx.shadowBlur=24;ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo((x1+x2)/2,(y1+y2)/2+Math.sin(t*3)*30,x2,y2);ctx.stroke();ctx.restore()
       } else if(power.type==='SOLAR'){
-        ctx.save();const grad=ctx.createLinearGradient(x1,y1,x2,y2);grad.addColorStop(0,rgba(power.color,0));grad.addColorStop(.7,rgba(power.color,.5));grad.addColorStop(1,'rgba(255,255,230,.9)');ctx.strokeStyle=grad;ctx.lineWidth=width*.026;ctx.shadowColor=power.color;ctx.shadowBlur=30;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore()
+        // A broad, layered solar stream with visible rays and a hot travelling centre.
+        ctx.save();ctx.lineCap='round';ctx.globalCompositeOperation='lighter'
+        const grad=ctx.createLinearGradient(x1,y1,x2,y2);grad.addColorStop(0,rgba(power.color,0));grad.addColorStop(.48,rgba(power.color,.2));grad.addColorStop(1,'rgba(255,255,230,.95)')
+        for(let k=0;k<5;k++){ctx.strokeStyle=k===2?grad:rgba(k%2?'#fff4bd':power.color,.42);ctx.lineWidth=k===2?width*.055:width*(.012+k*.002);ctx.shadowColor=power.color;ctx.shadowBlur=22;ctx.beginPath();ctx.moveTo(x1,y1+(k-2)*5);ctx.bezierCurveTo(x1+dx*.32,y1+dy*.32+Math.sin(t*7+k)*18,x1+dx*.7,y1+dy*.7+Math.cos(t*6+k)*16,x2,y2+(k-2)*3);ctx.stroke()}
+        ctx.restore()
+      } else if(power.type==='PLASMA'){
+        // Plasma has a wide ion wake, not a thin straight beam.
+        ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round'
+        for(let k=0;k<6;k++){const wave=Math.sin(t*10+k*1.35)*12;ctx.strokeStyle=rgba(k%2?'#ffffff':power.color,.68-k*.07);ctx.lineWidth=width*(k===2?.024:.009);ctx.shadowColor=power.color;ctx.shadowBlur=18;ctx.beginPath();ctx.moveTo(x1,y1+(k-2.5)*7);ctx.bezierCurveTo(x1+dx*.28,y1+dy*.28+wave,x1+dx*.72,y1+dy*.72-wave*.65,x2,y2+(k-2.5)*5);ctx.stroke()}
+        ctx.restore()
+      } else if(power.type==='SHADOW'){
+        ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round'
+        for(let k=0;k<4;k++){ctx.strokeStyle=rgba(k%2?'#e8d8ff':power.color,.38);ctx.lineWidth=width*(.018+k*.004);ctx.shadowColor=power.color;ctx.shadowBlur=25;ctx.beginPath();ctx.moveTo(x1,y1+(k-1.5)*9);ctx.bezierCurveTo(x1+dx*.25,y1+dy*.25+Math.sin(t*5+k)*25,x1+dx*.72,y1+dy*.72+Math.cos(t*5+k)*22,x2,y2);ctx.stroke()}
+        ctx.restore()
       } else {
-        // The textured VFX carries the silhouette; only fine moving motes remain in its wake.
-        if(Math.random()<.55) addBurst(x2,y2,power.color,2,42)
+        // Every remaining power gets a visible tapered, multi-strand wake.
+        ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round'
+        const grad=ctx.createLinearGradient(x1,y1,x2,y2);grad.addColorStop(0,rgba(power.color,0));grad.addColorStop(.55,rgba(power.color,.24));grad.addColorStop(1,rgba('#ffffff',.82))
+        for(let k=0;k<5;k++){ctx.strokeStyle=k===2?grad:rgba(power.color,.38-k*.045);ctx.lineWidth=width*(k===2?.045:.009);ctx.shadowColor=power.color;ctx.shadowBlur=17;ctx.beginPath();ctx.moveTo(x1,y1+(k-2)*7);ctx.quadraticCurveTo(x1+dx*.52,y1+dy*.52+Math.sin(t*8+k)*17,x2,y2+(k-2)*4);ctx.stroke()}
+        ctx.restore()
+        if(Math.random()<.8) addBurst(x2,y2,power.color,3,58)
       }
     }
 
@@ -513,31 +545,29 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
 
     const drawImpact = (x:number,y:number,power:Power,t:number) => {
       const progress=Math.min(1,t)
-      const radius=10+progress*width*.105
+      const radius=14+progress*width*.155
       ctx.save();ctx.globalAlpha=1-progress
       const g=ctx.createRadialGradient(x,y,1,x,y,radius)
       g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.18,rgba(power.color,.95));g.addColorStop(1,rgba(power.color,0))
       ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill()
-      for(let ring=0;ring<3;ring++){ctx.strokeStyle=rgba(ring===0?'#ffffff':power.color,1-progress);ctx.lineWidth=4-ring;ctx.beginPath();ctx.arc(x,y,radius*(.4+ring*.25),0,Math.PI*2);ctx.stroke()}
+      for(let ring=0;ring<5;ring++){ctx.strokeStyle=rgba(ring%2===0?'#ffffff':power.color,1-progress);ctx.lineWidth=ring===0?6:3;ctx.beginPath();ctx.arc(x,y,radius*(.32+ring*.17),0,Math.PI*2);ctx.stroke()}
+      ctx.strokeStyle=rgba('#ffffff',.72*(1-progress));ctx.lineWidth=2;for(let ray=0;ray<18;ray++){const a=ray*Math.PI/9;ctx.beginPath();ctx.moveTo(x+Math.cos(a)*radius*.25,y+Math.sin(a)*radius*.25);ctx.lineTo(x+Math.cos(a)*radius*1.18,y+Math.sin(a)*radius*1.18);ctx.stroke()}
       ctx.restore()
     }
 
     const frame=(now:number)=>{
       const dt=Math.min(.04,(now-last)/1000);last=now
       const elapsed=(now-start)/1000
-      const current=valuesRef.current
       ctx.clearRect(0,0,width,height)
       const midX=width*.5, midY=height*.355
-      const blueStart={x:width*.34,y:height*.315}
-      const redStart={x:width*.66,y:height*.315}
+      const blueStart={x:width*.355,y:height*.325}
+      const redStart={x:width*.645,y:height*.325}
       const target=impactSide==='blue'?{x:width*.235,y:height*.385}:{x:width*.765,y:height*.385}
       const source=winningSide==='blue'?blueStart:redStart
       const winnerPower=winningSide==='blue'?bluePower:redPower
       const loserPower=winningSide==='blue'?redPower:bluePower
-      const loserStart=winningSide==='blue'?redStart:blueStart
       const phaseProgress=(a:number,b:number)=>Math.max(0,Math.min(1,(elapsed-a)/(b-a)))
       const ease=(v:number)=>v<.5?4*v*v*v:1-Math.pow(-2*v+2,3)/2
-      const wind=phaseProgress(1.05,2.45)
       const release=phaseProgress(2.45,4.25)
       const collide=phaseProgress(4.25,5.15)
       const breakthrough=phaseProgress(5.15,6.1)
@@ -549,15 +579,15 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         const blueDefensive=['SHIELD','HEAL'].includes(bluePower.type)
         const redDefensive=['SHIELD','HEAL'].includes(redPower.type)
         if(!blueDefensive) {
-          drawProceduralPower(blueStart.x,blueStart.y,1,bluePower,elapsed,.42+charge*.7,charge)
-          drawOrb(blueStart.x,blueStart.y,5+charge*10,bluePower.color,bluePower,elapsed,charge*.24)
+          drawProceduralPower(blueStart.x,blueStart.y,1,bluePower,elapsed,.72+charge*.62,.72+charge*.28)
+          drawOrb(blueStart.x,blueStart.y,9+charge*16,bluePower.color,bluePower,elapsed,.42+charge*.42)
         }
         if(!redDefensive) {
-          drawProceduralPower(redStart.x,redStart.y,-1,redPower,elapsed,.42+charge*.7,charge)
-          drawOrb(redStart.x,redStart.y,5+charge*10,redPower.color,redPower,elapsed,charge*.24)
+          drawProceduralPower(redStart.x,redStart.y,-1,redPower,elapsed,.72+charge*.62,.72+charge*.28)
+          drawOrb(redStart.x,redStart.y,9+charge*16,redPower.color,redPower,elapsed,.42+charge*.42)
         }
-        if(blueDefensive) drawProceduralPower(blueStart.x,blueStart.y-34,1,bluePower,elapsed,.46+charge*.25,charge)
-        if(redDefensive) drawProceduralPower(redStart.x,redStart.y-34,-1,redPower,elapsed,.46+charge*.25,charge)
+        if(blueDefensive) drawProceduralPower(blueStart.x,blueStart.y-38,1,bluePower,elapsed,.9+charge*.45,.78+charge*.22)
+        if(redDefensive) drawProceduralPower(redStart.x,redStart.y-38,-1,redPower,elapsed,.9+charge*.45,.78+charge*.22)
         for(let i=0;i<2;i++){
           const origin=i===0?blueStart:redStart
           const power=i===0?bluePower:redPower
@@ -571,22 +601,23 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         const e=ease(p)
         const bx=blueStart.x+(midX-blueStart.x)*e
         const rx=redStart.x+(midX-redStart.x)*e
-        const by=blueStart.y+(midY-blueStart.y)*e+Math.sin(p*Math.PI)*-height*.035
-        const ry=redStart.y+(midY-redStart.y)*e+Math.sin(p*Math.PI)*-height*.035
+        const separation=Math.sin(p*Math.PI*.5)*Math.min(22,height*.035)
+        const by=blueStart.y+(midY-blueStart.y)*e+Math.sin(p*Math.PI)*-height*.035-separation
+        const ry=redStart.y+(midY-redStart.y)*e+Math.sin(p*Math.PI)*-height*.035+separation
         drawPowerWake(blueStart.x,blueStart.y,bx,by,bluePower,elapsed)
         drawPowerWake(redStart.x,redStart.y,rx,ry,redPower,elapsed)
-        drawProceduralPower(bx,by,1,bluePower,elapsed,1.42,1)
-        drawProceduralPower(rx,ry,-1,redPower,elapsed,1.42,1)
+        drawProceduralPower(bx,by,1,bluePower,elapsed,2.12,1)
+        drawProceduralPower(rx,ry,-1,redPower,elapsed,2.12,1)
         if(elapsed>4.25){
           const pulse=1+Math.sin(now*.018)*.14
-          ctx.save();ctx.globalAlpha=1-collide*.35;ctx.shadowColor=winnerPower.color;ctx.shadowBlur=30
+          ctx.save();ctx.globalAlpha=1-collide*.35;ctx.shadowColor=winnerPower.color;ctx.shadowBlur=42
           for(let ring=0;ring<4;ring++){
             ctx.strokeStyle=ring%2?'rgba(255,255,255,.9)':rgba(ring%3===0?bluePower.color:redPower.color,.82)
             ctx.lineWidth=ring===0?5:2.5
-            ctx.beginPath();ctx.arc(midX,midY,(12+ring*8)*pulse+collide*width*.075,0,Math.PI*2);ctx.stroke()
+            ctx.beginPath();ctx.arc(midX,midY,(18+ring*12)*pulse+collide*width*.09,0,Math.PI*2);ctx.stroke()
           }
           ctx.restore()
-          if(Math.random()<.8) addBurst(midX+rand(-12,12),midY+rand(-12,12),winnerPower.color,4,125)
+          if(Math.random()<.8) addBurst(midX+rand(-18,18),midY+rand(-18,18),winnerPower.color,7,155)
         }
       }
 
@@ -597,14 +628,14 @@ function LivePowerCanvas({ bluePower, redPower, winningSide, impactSide, beat }:
         const y=midY+(target.y-midY)*p
         const loserFade=1-breakthrough
         drawPowerWake(midX,midY,x,y,winnerPower,elapsed)
-        drawProceduralPower(x,y,Math.sign(target.x-midX),winnerPower,elapsed,1.48+breakthrough*.22,1)
+        drawProceduralPower(x,y,Math.sign(target.x-midX),winnerPower,elapsed,2.08+breakthrough*.24,1)
         drawProceduralPower(midX,midY,winningSide==='blue'?-1:1,loserPower,elapsed,.46,loserFade*.45)
         drawOrb(midX,midY,Math.max(1,26*loserFade),loserPower.color,loserPower,elapsed,loserFade*.45)
       }
 
       if(elapsed>=6.25 && elapsed<7.3) {
         drawImpact(target.x,target.y,winnerPower,impact)
-        if (elapsed < 6.55 && Math.random() < .85) addBurst(target.x,target.y,winnerPower.color,7,150)
+        if (elapsed < 6.65 && Math.random() < .95) addBurst(target.x,target.y,winnerPower.color,11,175)
       }
 
       // Procedural sparks and motes: each particle has its own velocity, drag and lifetime.
