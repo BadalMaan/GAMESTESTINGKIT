@@ -78,16 +78,6 @@
       width: 100%;
       height: 100%;
     }
-  
-    #exitWebsiteDashboard {
-      position: fixed; z-index: 1000; top: 10px; right: 12px; left: auto;
-      border: 1px solid #b9d7ef; border-radius: 11px; padding: 9px 13px;
-      background: rgba(255,255,255,.96); color: #16466c;
-      font: 900 10px/1.2 Inter, sans-serif; letter-spacing: .12em;
-      box-shadow: 0 5px 18px rgba(28,83,125,.16); cursor: pointer;
-    }
-    #exitWebsiteDashboard:hover { background:#e4f3ff; transform:translateY(-1px); }
-    @media(max-width:700px) { #exitWebsiteDashboard { top:6px; right:6px; left:auto; padding:7px 9px; } }
 
 </style>
 
@@ -224,7 +214,7 @@
   #gsh3dStatus[data-state="error"]{background:#fff1f0;color:#a12d26}
 </style>
 </head>
-<body class="w-screen h-dvh overflow-hidden bg-slate-100 text-slate-900 flex flex-col"><button id="exitWebsiteDashboard" type="button" aria-label="Return to website dashboard">← DASHBOARD</button>
+<body class="w-screen h-dvh overflow-hidden bg-slate-100 text-slate-900 flex flex-col">
 
   <!-- ===================================================================== -->
   <!-- SCREEN 1: COMIC-BOOK POSTER COVER                                     -->
@@ -796,17 +786,7 @@
     const enterArenaBtn = document.getElementById('enterArenaBtn');
     const exitArenaBtn = document.getElementById('exitArenaBtn');
     const attackBtn = document.getElementById('attackBtn');
-
-    document.getElementById('exitWebsiteDashboard').addEventListener('click', () => {
-      if (window.parent !== window) {
-        window.parent.postMessage({ type: 'GPA_EXIT_ARENA' }, window.location.origin);
-      } else {
-        window.location.href = '/';
-      }
-    });
-
-
-    const p1NameInput = document.getElementById('p1NameInput');
+const p1NameInput = document.getElementById('p1NameInput');
     const p2NameInput = document.getElementById('p2NameInput');
     const p1SuitPills = document.getElementById('p1SuitPills');
     const p2SuitPills = document.getElementById('p2SuitPills');
@@ -2149,9 +2129,8 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
     // Ara's public API takes the preset name as the first argument and options
     // as the second. Keep the animation set small enough for a game load.
     const animationIds = [
-      'idle','walk','punch_combo','front_kick','roundhouse_kick',
-      'block','hit_reaction','hit_from_front','knockdown',
-      'death_fall_backward','death_fall_forward','get_up_from_back','get_up_from_front'
+      // Use documented category names so Ara resolves its current clip IDs.
+      'idle', 'walk', 'combat', 'reactions'
     ];
     const common = { detail:'medium', animations:animationIds, carry:'none' };
     const [blueHero, redHero] = await Promise.all([
