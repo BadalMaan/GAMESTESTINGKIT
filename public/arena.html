@@ -487,17 +487,25 @@
         this.ensure();
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
+        // Cinematic double-layer impact: deep bass punch plus a crisp collision crack.
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(120, now);
-        osc.frequency.exponentialRampToValueAtTime(48, now + 0.35);
-        gain.gain.setValueAtTime(0.16, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.38);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(155, now);
+        osc.frequency.exponentialRampToValueAtTime(38, now + 0.42);
+        gain.gain.setValueAtTime(0.30, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.46);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.48);
+        const crack = this.ctx.createOscillator();
+        const crackGain = this.ctx.createGain();
+        crack.type = 'triangle';
+        crack.frequency.setValueAtTime(980, now + 0.012);
+        crack.frequency.exponentialRampToValueAtTime(170, now + 0.16);
+        crackGain.gain.setValueAtTime(0.13, now + 0.012);
+        crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
+        crack.connect(crackGain); crackGain.connect(this.ctx.destination);
+        crack.start(now + 0.012); crack.stop(now + 0.20);
       }
       playDraw() {
         this.ensure();
@@ -649,23 +657,18 @@
     };
 
 
-    // Short optional character voice reactions using the browser's built-in speech engine.
-    // No external audio files or network requests are needed.
-    let lastVoiceAt = 0;
-    function speakArenaLine(line, rate = 1.02, pitch = 0.82) {
-      if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return;
-      const now = Date.now();
-      if (now - lastVoiceAt < 1100) return;
-      lastVoiceAt = now;
+    // User-selected voice clips hosted by MyInstants. No generated/browser speech.
+    const hitVoice = new Audio('https://www.myinstants.com/media/sounds/ahh-almost-pt2.mp3');
+    const loserVoice = new Audio('https://www.myinstants.com/media/sounds/get-out-loser.mp3');
+    hitVoice.preload = 'auto';
+    loserVoice.preload = 'auto';
+    function playVoiceClip(audio) {
       try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(line);
-        utterance.rate = rate; utterance.pitch = pitch; utterance.volume = 0.9;
-        const voices = window.speechSynthesis.getVoices();
-        const preferred = voices.find(v => /en-US|en-GB/i.test(v.lang));
-        if (preferred) utterance.voice = preferred;
-        window.speechSynthesis.speak(utterance);
-      } catch (_) { /* Voice lines are optional; game play never depends on them. */ }
+        audio.pause();
+        audio.currentTime = 0;
+        const playback = audio.play();
+        if (playback && typeof playback.catch === 'function') playback.catch(() => {});
+      } catch (_) { /* Sound clips are optional; combat never depends on audio. */ }
     }
 
     function resolveElementalClash(pw1, pw2) {
@@ -1584,10 +1587,10 @@
           if (damageToP1 > 0 || damageToP2 > 0) {
             const loserName = damageToP1 > 0 ? game.p1.name : game.p2.name;
             const winnerName = damageToP1 > 0 ? game.p2.name : game.p1.name;
-            speakArenaLine('Oooaaah!', 0.82, 0.72);
+            playVoiceClip(hitVoice);
             // A playful taunt is occasional, not every single exchange.
             if (Math.random() < 0.42) {
-              window.setTimeout(() => speakArenaLine(`Come on, ${loserName}, loser!`, 1.08, 1.02), 1250);
+              window.setTimeout(() => playVoiceClip(loserVoice), 1250);
             }
           }
           if(shieldActive) setStatusPill('SHIELD ACTIVATED — NO DAMAGE',true);
