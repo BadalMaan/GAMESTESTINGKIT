@@ -1996,9 +1996,12 @@ const p1NameInput = document.getElementById('p1NameInput');
     requestAnimationFrame(mainLoop);
   </script>
 
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 (() => {
  const host=document.getElementById('warrior3DLayer'); if(!host) return;
  const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
@@ -2015,8 +2018,8 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/
  const rim=new THREE.DirectionalLight(0xb9dcff,1.1); rim.position.set(4,4,-4); scene.add(rim);
  const loader=new GLTFLoader();
  const specs=[
-  {url:'/models/spartan-warrior.glb',x:-2.45,face:0,clips:{idle:/^idle$/i,attack:/atk01|attack/i,hit:/hurt|hit/i,walk:/mv_tar21|walk/i,fall:/shuimian|death/i}},
-  {url:'/models/KnightCaptain.glb',x:2.45,face:Math.PI,clips:{idle:/^idle$/i,attack:/^attack$/i,hit:/^hit$/i,walk:/walk|run/i,fall:/^death$/i}}
+  {url:'/models/spartan-warrior.glb',x:-2.45,face:0,clips:{idle:/^idle$/i,attack:/atk01|attack/i,hit:/hurt|hit/i,walk:/mv_tar21|walk/i,fall:/shuimian|death/i,victory:/^win$/i}},
+  {url:'/models/KnightCaptain.glb',x:2.45,face:Math.PI,clips:{idle:/^idle$/i,attack:/^attack$/i,hit:/^hit$/i,walk:/walk|run/i,fall:/^death$/i,victory:/^win$/i}}
  ];
  const fighters=[];
  function choose(clips,rx){return clips.find(c=>rx.test(c.name))||null}
@@ -2035,7 +2038,7 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/
   gltf.scene.position.y-=scaledBox.min.y;
   scene.add(root);
   const mixer=new THREE.AnimationMixer(gltf.scene), clips=gltf.animations||[];
-  const f={root,mixer,clips:{idle:choose(clips,s.clips.idle),attack:choose(clips,s.clips.attack),hit:choose(clips,s.clips.hit),walk:choose(clips,s.clips.walk),fall:choose(clips,s.clips.fall)},action:null,current:null,falling:false,hitLock:0};
+  const f={root,mixer,clips:{idle:choose(clips,s.clips.idle),attack:choose(clips,s.clips.attack),hit:choose(clips,s.clips.hit),walk:choose(clips,s.clips.walk),fall:choose(clips,s.clips.fall),victory:choose(clips,s.clips.victory)},action:null,current:null,falling:false,hitLock:0,victoryClock:0,victoryFlip:false};
   fighters[index]=f;play(f,'idle',true);
   return f;
  }
@@ -2055,14 +2058,26 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/
   if(state && fighters.length===2 && fighters[0] && fighters[1]){
    fighters.forEach((f,i)=>{
     const q=i===0?state.p1:state.p2;
+    const finalLoser=state.phase==='VICTORY' && state.winnerSide && state.winnerSide!==(i+1);
+    const finalWinner=state.phase==='VICTORY' && state.winnerSide===(i+1);
     const losing=(state.phase==='SURGE_HIT' && state.winnerSide && state.winnerSide!==(i+1));
-    const falling=(q.fall||0)>0 || losing;
+    const falling=finalLoser || (q.fall||0)>0 || losing;
     const hurt=(q.hurt||0)>0 || (state.phase==='SURGE_HIT' && losing);
     const attacking=q.anim==='cast' || (state.phase==='SURGE_HIT' && state.winnerSide===(i+1));
     if(falling){
       if(!f.falling){play(f,'fall',false);f.falling=true;f.fallStarted=now;}
       f.root.rotation.z=(i===0?-.65:.65);
       f.root.position.y=-.22;
+    } else if(finalWinner){
+      f.falling=false;f.root.rotation.z=0;f.root.position.y=0;
+      f.victoryClock+=dt;
+      // Use a dedicated win clip when supplied; otherwise repeat the model's attack move with short pauses.
+      if(f.clips.victory) play(f,'victory',true);
+      else {
+        const cycle=f.victoryClock%2.15;
+        if(cycle<1.55) play(f,'attack',false);
+        else play(f,'idle',true);
+      }
     } else if(hurt){
       play(f,'hit',false);f.root.rotation.z=0;f.root.position.y=0;
     } else if(attacking){
