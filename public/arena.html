@@ -202,6 +202,11 @@
   .power-inventory strong{color:#1b5a83!important}.power-chip{color:#173d5d!important;box-shadow:none!important}
 </style>
 
+<style>
+#warrior3DLayer{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+#warrior3DLayer canvas{display:block;width:100%;height:100%}
+#battleCanvas{position:relative;z-index:1}
+</style>
 </head>
 <body class="w-screen h-dvh overflow-hidden bg-slate-100 text-slate-900 flex flex-col">
 
@@ -375,7 +380,7 @@
 
     <!-- Center Battle Canvas -->
     <main class="relative flex-1 min-h-0 w-full max-w-7xl mx-auto my-1.5 rounded-3xl overflow-hidden border-2 border-slate-300 shadow-lg bg-sky-200">
-      <canvas id="battleCanvas"></canvas>
+      <canvas id="battleCanvas"></canvas><div id="warrior3DLayer" aria-hidden="true"></div>
       <div id="p1PowerInventory" class="power-inventory left"><strong>PLAYER 1 · POWER ARSENAL</strong><div class="power-list"></div></div>
       <div id="p2PowerInventory" class="power-inventory right"><strong>PLAYER 2 · POWER ARSENAL</strong><div class="power-list"></div></div>
 
@@ -1683,6 +1688,11 @@ const p1NameInput = document.getElementById('p1NameInput');
           game.p2.power=Math.max(0,game.p2.power-damageToP2);
           if(damageToP1>0){game.p1.hurtTimer=1.2;game.p1.fallTimer=2.5;game.p1.recoilX=-34;game.p1.anim='fall';}
           if(damageToP2>0){game.p2.hurtTimer=1.2;game.p2.fallTimer=2.5;game.p2.recoilX=34;game.p2.anim='fall';}
+          if(damageToP1>0 || damageToP2>0){
+            const impactVoice = new Audio('https://www.myinstants.com/media/sounds/classic_hurt_7UuVwoL.mp3');
+            impactVoice.volume = 0.9;
+            impactVoice.play().catch(()=>{});
+          }
           if (damageToP1 > 0 || damageToP2 > 0) {
             // The hit cry plays only when a fighter actually takes damage.
             // The loser taunt is reserved for the final match result below.
@@ -1817,9 +1827,15 @@ const p1NameInput = document.getElementById('p1NameInput');
       const p2X = w * 0.825;
       const scale = Math.max(1.15, Math.min(2.15, h / 235));
 
-      // Original illustrated fighters are the main arena characters.
-      drawRealisticHero(ctx, p1X, groundY, scale, 1, game.p1.hero, game.p1.anim, game.time, game.p1.hurtTimer, game.p1.recoilX, game.p1.fallTimer);
-      drawRealisticHero(ctx, p2X, groundY, scale, -1, game.p2.hero, game.p2.anim, game.time, game.p2.hurtTimer, game.p2.recoilX, game.p2.fallTimer);
+      // Keep the original illustrated fighters as a safe fallback until both local GLB models load.
+      if (!window.gsh3dReady) {
+        drawRealisticHero(ctx, p1X, groundY, scale, 1, game.p1.hero, game.p1.anim, game.time, game.p1.hurtTimer, game.p1.recoilX, game.p1.fallTimer);
+        drawRealisticHero(ctx, p2X, groundY, scale, -1, game.p2.hero, game.p2.anim, game.time, game.p2.hurtTimer, game.p2.recoilX, game.p2.fallTimer);
+      } else {
+        window.gsh3dFrame = { phase: game.phase, winnerSide: game.clash.winnerSide,
+          p1:{anim:game.p1.anim,hurt:game.p1.hurtTimer,fall:game.p1.fallTimer,recoil:game.p1.recoilX},
+          p2:{anim:game.p2.anim,hurt:game.p2.hurtTimer,fall:game.p2.fallTimer,recoil:game.p2.recoilX} };
+      }
 
       // Central collision vortex: opposing elemental force compresses, pulses and fractures.
       if (game.phase === 'CENTER_CLASH') {
@@ -1979,5 +1995,90 @@ const p1NameInput = document.getElementById('p1NameInput');
     resizeAllCanvases();
     requestAnimationFrame(mainLoop);
   </script>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+(() => {
+ const host=document.getElementById('warrior3DLayer'); if(!host) return;
+ const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
+ renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.7));
+ renderer.outputColorSpace=THREE.SRGBColorSpace;
+ renderer.toneMapping=THREE.ACESFilmicToneMapping;
+ renderer.toneMappingExposure=1.12;
+ host.appendChild(renderer.domElement);
+ const scene=new THREE.Scene();
+ const camera=new THREE.PerspectiveCamera(34,1,.1,100);
+ camera.position.set(0,2.7,12.4); camera.lookAt(0,1.05,0);
+ scene.add(new THREE.HemisphereLight(0xffffff,0x536078,2.0));
+ const key=new THREE.DirectionalLight(0xffffff,2.5); key.position.set(-3,7,6); scene.add(key);
+ const rim=new THREE.DirectionalLight(0xb9dcff,1.1); rim.position.set(4,4,-4); scene.add(rim);
+ const loader=new GLTFLoader();
+ const specs=[
+  {url:'/models/spartan-warrior.glb',x:-2.45,face:0,clips:{idle:/^idle$/i,attack:/atk01|attack/i,hit:/hurt|hit/i,walk:/mv_tar21|walk/i,fall:/shuimian|death/i}},
+  {url:'/models/KnightCaptain.glb',x:2.45,face:Math.PI,clips:{idle:/^idle$/i,attack:/^attack$/i,hit:/^hit$/i,walk:/walk|run/i,fall:/^death$/i}}
+ ];
+ const fighters=[];
+ function choose(clips,rx){return clips.find(c=>rx.test(c.name))||null}
+ function play(f,key,loop=true){
+  const clip=f.clips[key]||f.clips.idle;if(!clip)return;
+  if(f.current===clip && f.action && f.action.isRunning())return;
+  if(f.action){f.action.fadeOut(.12)}
+  const a=f.mixer.clipAction(clip);a.reset();a.enabled=true;a.setLoop(loop?THREE.LoopRepeat:THREE.LoopOnce,loop?Infinity:1);a.clampWhenFinished=!loop;a.fadeIn(.14).play();f.action=a;f.current=clip;
+ }
+ async function loadOne(s,index){
+  const gltf=await loader.loadAsync(s.url);
+  const root=new THREE.Group();root.add(gltf.scene);root.position.x=s.x;root.rotation.y=s.face;
+  const box=new THREE.Box3().setFromObject(gltf.scene), size=box.getSize(new THREE.Vector3());
+  const scale=1.95/Math.max(size.y,.001);gltf.scene.scale.setScalar(scale);
+  const scaledBox=new THREE.Box3().setFromObject(gltf.scene);
+  gltf.scene.position.y-=scaledBox.min.y;
+  scene.add(root);
+  const mixer=new THREE.AnimationMixer(gltf.scene), clips=gltf.animations||[];
+  const f={root,mixer,clips:{idle:choose(clips,s.clips.idle),attack:choose(clips,s.clips.attack),hit:choose(clips,s.clips.hit),walk:choose(clips,s.clips.walk),fall:choose(clips,s.clips.fall)},action:null,current:null,falling:false,hitLock:0};
+  fighters[index]=f;play(f,'idle',true);
+  return f;
+ }
+ function resize(){
+  const w=host.clientWidth||1,h=host.clientHeight||1;
+  renderer.setSize(w,h,false);camera.aspect=w/h;
+  camera.fov=w/h<1?43:34;
+  camera.position.set(0,w/h<1?3.1:2.7,w/h<1?15.4:12.4);
+  camera.lookAt(0,1.0,0);camera.updateProjectionMatrix();
+ }
+ const ro=new ResizeObserver(resize);ro.observe(host);resize();
+ Promise.all(specs.map(loadOne)).then(()=>{window.gsh3dReady=true;}).catch(e=>{console.error('Warrior GLB load failed:',e);window.gsh3dReady=false;});
+ let last=performance.now();
+ function frame(now){
+  requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000);last=now;
+  const state=window.gsh3dFrame;
+  if(state && fighters.length===2 && fighters[0] && fighters[1]){
+   fighters.forEach((f,i)=>{
+    const q=i===0?state.p1:state.p2;
+    const losing=(state.phase==='SURGE_HIT' && state.winnerSide && state.winnerSide!==(i+1));
+    const falling=(q.fall||0)>0 || losing;
+    const hurt=(q.hurt||0)>0 || (state.phase==='SURGE_HIT' && losing);
+    const attacking=q.anim==='cast' || (state.phase==='SURGE_HIT' && state.winnerSide===(i+1));
+    if(falling){
+      if(!f.falling){play(f,'fall',false);f.falling=true;f.fallStarted=now;}
+      f.root.rotation.z=(i===0?-.65:.65);
+      f.root.position.y=-.22;
+    } else if(hurt){
+      play(f,'hit',false);f.root.rotation.z=0;f.root.position.y=0;
+    } else if(attacking){
+      play(f,'attack',false);f.root.rotation.z=0;f.root.position.y=0;
+    } else {
+      f.falling=false;f.root.rotation.z=0;f.root.position.y=0;
+      if(q.anim==='walk')play(f,'walk',true);else play(f,'idle',true);
+    }
+    f.root.position.x=specs[i].x+(q.recoil||0)*.006;
+    f.mixer.update(dt);
+   });
+  }
+  renderer.render(scene,camera);
+ }
+ requestAnimationFrame(frame);
+})();
+</script>
 </body>
 </html>
