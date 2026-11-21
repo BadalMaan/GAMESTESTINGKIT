@@ -1,0 +1,9 @@
+3D CHARACTER LOADER FIX
+
+This patch corrects the Ara 3D integration in public/arena.html:
+- Uses the documented ara3d 0.11.0 library endpoint.
+- Calls createCharacter with the documented (presetName, options) signature.
+- Uses documented preset names: The Soldier and The Professional Hitman.
+- Requests a bounded combat animation set rather than filtering a possibly empty runtime list.
+
+Character geometry and textures are still fetched from Ara's public character-data CDN at runtime. The app therefore needs internet access to build the characters. This ZIP has not been production-browser-tested in this environment.

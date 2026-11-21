@@ -2010,7 +2010,7 @@
   </script>
 <script type="module">
 import * as THREE from 'three';
-import { createCharacter, ANIMATIONS } from 'https://esm.sh/ara3d@0.9.0?external=three';
+import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
 (() => {
   const host = document.getElementById('battle3DOverlay');
   const status = document.getElementById('gsh3dStatus');
@@ -2146,11 +2146,17 @@ import { createCharacter, ANIMATIONS } from 'https://esm.sh/ara3d@0.9.0?external
     setStatus('loading','BUILDING REAL HUMAN FIGHTERS…');
     // Ara uses the CC0 MakeHuman human dataset and motion-captured CMU animations.
     // Characters are built in the browser; no mannequin or external GLB URL fallback.
-    const animationIds = ANIMATIONS.filter(a => /^(combat|locomotion|actions|reactions)$/i.test(a.group || '') || /^(combat|locomotion|actions|reactions)$/i.test(a.category || '') || /hit.?reaction|knockdown|death.?fall|get.?up.?from/i.test(a.name || '')).map(a => a.id);
+    // Ara's public API takes the preset name as the first argument and options
+    // as the second. Keep the animation set small enough for a game load.
+    const animationIds = [
+      'idle','fighting_stance','walk','punch_combo','front_kick','roundhouse_kick',
+      'block','hit_reaction','hit_from_front','knockdown',
+      'death_fall_backward','death_fall_forward','get_up_from_back','get_up_from_front'
+    ];
     const common = { detail:'medium', animations:animationIds, carry:'none' };
     const [blueHero, redHero] = await Promise.all([
-      createCharacter({ preset:'The Soldier', params:{ name:'Blue Champion' } }, { ...common, colors:{ outfit:'#174f9c', top:'#174f9c', jacket:'#174f9c', bottom:'#142d52', shoes:'#142d52' } }),
-      createCharacter({ preset:'The Adventurer', params:{ name:'Red Champion' } }, { ...common, colors:{ outfit:'#9e2637', top:'#9e2637', jacket:'#9e2637', bottom:'#431c2b', shoes:'#431c2b' } })
+      createCharacter('The Soldier', { ...common, colors:{ outfit:'#174f9c', top:'#174f9c', jacket:'#174f9c', bottom:'#142d52', shoes:'#142d52' } }),
+      createCharacter('The Professional Hitman', { ...common, colors:{ outfit:'#9e2637', top:'#9e2637', jacket:'#9e2637', bottom:'#431c2b', shoes:'#431c2b' } })
     ]);
     fighters.push(createFighter(blueHero,'blue'), createFighter(redHero,'red'));
     ready = true; window.gsh3dReady = true; window.gsh3dAssetStatus = 'loaded';
@@ -2161,7 +2167,7 @@ import { createCharacter, ANIMATIONS } from 'https://esm.sh/ara3d@0.9.0?external
   boot().catch(err => {
     console.error('Ara 3D human character build failed:',err);
     window.gsh3dReady = false; window.gsh3dAssetStatus = 'error';
-    setStatus('error','3D HUMAN ASSETS FAILED TO LOAD — CHECK CONNECTION');
+    setStatus('error','3D HUMAN LOAD FAILED — OPEN BROWSER CONSOLE');
   });
   function frame(now) {
     requestAnimationFrame(frame);
