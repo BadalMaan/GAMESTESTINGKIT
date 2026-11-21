@@ -201,6 +201,16 @@
   @media(max-width:760px){#arenaScreen{padding:4px!important;gap:4px!important}#arenaScreen header,#arenaScreen footer{padding:6px!important}.power-inventory{top:5px!important}.power-slot-btn{min-height:40px!important}}
 </style>
 
+<style id="final-bright-day-arena-overrides">
+  html,body,#posterScreen,#selectScreen,#arenaScreen{background-color:#eaf7ff!important;color:#173c59!important}
+  #arenaScreen{background:linear-gradient(180deg,#d9f1ff 0%,#f7fcff 55%,#e2f2fa 100%)!important}
+  #arenaScreen header,#arenaScreen footer{background:rgba(255,255,255,.97)!important;color:#173c59!important;border:1px solid #b7d8e9!important;box-shadow:0 3px 12px rgba(34,91,125,.10)!important;backdrop-filter:none!important}
+  #arenaScreen header span,#arenaScreen footer span{color:#173c59!important}
+  #arenaScreen main{background:linear-gradient(180deg,#bce8ff,#f2fbff 60%,#d4ebf6)!important;border:1px solid #9bcce3!important;box-shadow:0 4px 16px rgba(35,85,125,.10)!important}
+  #arenaStatusPill{background:rgba(255,255,255,.94)!important;color:#174563!important;border:1px solid #a9d0e5!important;text-shadow:none!important}
+  .power-inventory{background:rgba(255,255,255,.94)!important;color:#173d5d!important;border:1px solid #a9cfe3!important;box-shadow:0 3px 10px rgba(35,85,125,.10)!important;backdrop-filter:none!important}
+  .power-inventory strong{color:#1b5a83!important}.power-chip{color:#173d5d!important;box-shadow:none!important}
+</style>
 </head>
 <body class="w-screen h-dvh overflow-hidden bg-slate-100 text-slate-900 flex flex-col"><button id="exitWebsiteDashboard" type="button" aria-label="Return to website dashboard">← DASHBOARD</button>
 
@@ -672,8 +682,19 @@
     }
 
     function resolveElementalClash(pw1, pw2) {
-      // No power-strength or elemental-counter auto-winner: both attacks meet at centre.
-      return (pw1 && pw2) ? (Math.random() < 0.5 ? 1 : 2) : 0;
+      if (!pw1 || !pw2) return 0;
+      const p1Mega = pw1.id === 'megapower';
+      const p2Mega = pw2.id === 'megapower';
+      const p1Shield = pw1.id === 'shield';
+      const p2Shield = pw2.id === 'shield';
+
+      // Mega is dominant against every power except Shield and another Mega.
+      // Those two matchups are neutral: the centre clash has no winner/damage.
+      if ((p1Mega && (p2Mega || p2Shield)) || (p2Mega && p1Shield)) return 0;
+      if (p1Mega) return 1;
+      if (p2Mega) return 2;
+      // Non-Mega, non-Shield clashes remain unpredictable and fair.
+      return Math.random() < 0.5 ? 1 : 2;
     }
 
     // =========================================================================
@@ -1215,45 +1236,55 @@
     // 7. SKY-TERRACE MOUNTAIN ARENA BACKDROP
     // =========================================================================
     function renderSkyTerraceArena(ctx, w, h) {
-      // New cinematic futuristic megacity arena: deliberately soft in the distance
-      // so the fighters and saturated power collisions stay in sharp focus.
-      const horizon = h * .58, floorY = h * .70;
-      const sky = ctx.createLinearGradient(0,0,0,h);
-      sky.addColorStop(0,'#101a38'); sky.addColorStop(.38,'#263d68');
-      sky.addColorStop(.68,'#536c91'); sky.addColorStop(1,'#172943');
-      ctx.fillStyle=sky; ctx.fillRect(0,0,w,h);
-      const aurora=ctx.createRadialGradient(w*.5,h*.23,2,w*.5,h*.23,w*.58);
-      aurora.addColorStop(0,'rgba(68,190,255,.30)'); aurora.addColorStop(.45,'rgba(118,82,220,.13)'); aurora.addColorStop(1,'rgba(5,12,30,0)');
-      ctx.fillStyle=aurora;ctx.fillRect(0,0,w,h*.72);
-      // Distant futuristic skyline, intentionally softened by the caller's backdrop blur.
-      const buildings=[.09,.16,.24,.32,.40,.49,.58,.66,.75,.83,.92];
-      buildings.forEach((x,i)=>{
-        const bw=w*(.045+(i%3)*.018), bh=h*(.15+(i*7%5)*.055), y=horizon-bh;
-        const g=ctx.createLinearGradient(0,y,0,horizon);g.addColorStop(0,'#263a60');g.addColorStop(1,'#101d37');
-        ctx.fillStyle=g;ctx.fillRect(w*x,y,bw,bh);
-        ctx.fillStyle=i%2?'rgba(70,211,255,.58)':'rgba(255,94,176,.48)';
-        for(let wy=y+12;wy<horizon-8;wy+=17) for(let wx=w*x+8;wx<w*x+bw-5;wx+=13) ctx.fillRect(wx,wy,4,6);
-        ctx.fillStyle='rgba(123,185,255,.35)';ctx.fillRect(w*x+bw*.45,y-10,3,10);
+      // Bright daytime coastal-city arena: clear sky, soft distant skyline,
+      // sunlit pale stone floor and crisp details around the fighters.
+      const horizon = h * .57, floorY = h * .70;
+      const sky = ctx.createLinearGradient(0, 0, 0, h);
+      sky.addColorStop(0, '#48b8f4');
+      sky.addColorStop(.34, '#a9e1ff');
+      sky.addColorStop(.62, '#e4f6ff');
+      sky.addColorStop(1, '#f4fbff');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+
+      // Soft sun glow and a few broad, translucent clouds.
+      const sun = ctx.createRadialGradient(w*.78, h*.16, 3, w*.78, h*.16, w*.24);
+      sun.addColorStop(0, 'rgba(255,255,226,.88)');
+      sun.addColorStop(.35, 'rgba(255,255,255,.35)');
+      sun.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = sun; ctx.fillRect(0, 0, w, h*.55);
+      ctx.fillStyle = 'rgba(255,255,255,.30)';
+      [[.18,.19,.12],[.43,.12,.09],[.66,.27,.13],[.9,.31,.1]].forEach(([x,y,r])=>{
+        ctx.beginPath(); ctx.ellipse(w*x,h*y,w*r,h*.025,0,0,Math.PI*2); ctx.fill();
       });
-      // Neon arena pylons frame the fighters without competing with them.
-      for(const side of [0,1]){
-        const x=side===0?w*.035:w*.925;
-        const grad=ctx.createLinearGradient(x,0,x+w*.04,0);grad.addColorStop(0,'rgba(33,177,255,.15)');grad.addColorStop(.5,'rgba(67,205,255,.8)');grad.addColorStop(1,'rgba(33,177,255,.12)');
-        ctx.fillStyle=grad;ctx.fillRect(x,h*.18,w*.04,floorY-h*.18);
-        ctx.fillStyle='rgba(106,218,255,.8)';ctx.fillRect(x,h*.18,w*.04,3);
-      }
-      const floor=ctx.createLinearGradient(0,floorY,0,h);floor.addColorStop(0,'#344e70');floor.addColorStop(.45,'#1b304d');floor.addColorStop(1,'#0b172b');
-      ctx.fillStyle=floor;ctx.fillRect(0,floorY,w,h-floorY);
-      // Perspective grid and illuminated circular battle platform.
-      ctx.strokeStyle='rgba(81,194,255,.22)';ctx.lineWidth=1;
-      for(let i=0;i<=8;i++){const yy=floorY+(h-floorY)*i/8;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke();}
+
+      // Bright modern skyline in the distance, deliberately low contrast.
+      const buildings = [.04,.13,.22,.31,.40,.50,.60,.70,.80,.90];
+      buildings.forEach((x,i)=>{
+        const bw=w*(.055+(i%3)*.014), bh=h*(.13+(i*7%5)*.045), y=horizon-bh;
+        const g=ctx.createLinearGradient(0,y,0,horizon);
+        g.addColorStop(0, i%2 ? '#b8d9e9' : '#c7e5f1');
+        g.addColorStop(1, '#8fb9d0');
+        ctx.fillStyle=g; ctx.fillRect(w*x,y,bw,bh);
+        ctx.fillStyle='rgba(255,255,255,.55)';
+        for(let wy=y+12;wy<horizon-8;wy+=19) for(let wx=w*x+8;wx<w*x+bw-5;wx+=15) ctx.fillRect(wx,wy,5,7);
+        ctx.fillStyle='rgba(255,255,255,.42)'; ctx.fillRect(w*x+bw*.45,y-9,3,9);
+      });
+
+      // Sunlit pale-stone arena floor.
+      const floor=ctx.createLinearGradient(0,floorY,0,h);
+      floor.addColorStop(0,'#d8edf7'); floor.addColorStop(.45,'#c5e0ed'); floor.addColorStop(1,'#a9ccdd');
+      ctx.fillStyle=floor; ctx.fillRect(0,floorY,w,h-floorY);
+      ctx.strokeStyle='rgba(63,130,165,.18)'; ctx.lineWidth=1;
+      for(let i=0;i<=7;i++){const yy=floorY+(h-floorY)*i/7;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke();}
       for(let i=0;i<=14;i++){const x=w*i/14;ctx.beginPath();ctx.moveTo(w*.5,floorY);ctx.lineTo(x,h);ctx.stroke();}
       const cx=w*.5,cy=floorY+(h-floorY)*.54;
-      ctx.save();ctx.shadowColor='#35bfff';ctx.shadowBlur=26;ctx.strokeStyle='rgba(75,202,255,.72)';ctx.lineWidth=3;
+      ctx.save(); ctx.strokeStyle='rgba(31,145,194,.42)'; ctx.lineWidth=3;
       ctx.beginPath();ctx.ellipse(cx,cy,w*.34,(h-floorY)*.38,0,0,Math.PI*2);ctx.stroke();
-      ctx.shadowBlur=10;ctx.strokeStyle='rgba(183,116,255,.48)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(cx,cy,w*.25,(h-floorY)*.27,0,0,Math.PI*2);ctx.stroke();ctx.restore();
-      const vignette=ctx.createRadialGradient(w*.5,h*.45,w*.2,w*.5,h*.45,w*.82);vignette.addColorStop(.55,'rgba(3,8,22,0)');vignette.addColorStop(1,'rgba(2,7,20,.48)');ctx.fillStyle=vignette;ctx.fillRect(0,0,w,h);
+      ctx.strokeStyle='rgba(255,255,255,.72)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.ellipse(cx,cy,w*.25,(h-floorY)*.27,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+      // No dark vignette, night tint, or heavy shadow overlay.
     }
+
 
     // =========================================================================
     // 8. POWER BEAM & IMPACT VFX RENDERER
@@ -1571,10 +1602,10 @@
           spawnImpactBurst(w*.5,h*.57,a); spawnImpactBurst(w*.5,h*.57,b);
           const shieldActive = a.id==='shield' || b.id==='shield';
           const megaClash = a.id==='megapower' && b.id==='megapower';
+          const megaShieldClash = (a.id==='megapower' && b.id==='shield') || (b.id==='megapower' && a.id==='shield');
           let damageToP1=0, damageToP2=0;
-          // Only the losing fighter is hit. A shield blocks the entire clash;
-          // Megapower vs Megapower is a perfect draw with zero damage.
-          if(!shieldActive && !megaClash){
+          // Shield blocks the clash. Mega vs Mega and Mega vs Shield are neutral.
+          if(!shieldActive && !megaClash && !megaShieldClash){
             const winningPower = game.clash.winnerSide === 1 ? a : b;
             const damage = winningPower.id === 'megapower' ? 45 : 20;
             if(game.clash.winnerSide === 1) damageToP2 = damage;
@@ -1595,6 +1626,7 @@
           }
           if(shieldActive) setStatusPill('SHIELD ACTIVATED — NO DAMAGE',true);
           else if(megaClash) setStatusPill('MEGAPOWER VS MEGAPOWER — ZERO DAMAGE',true);
+          else if(megaShieldClash) setStatusPill('MEGAPOWER VS SHIELD — ZERO EFFECT',true);
           else setStatusPill(`CENTRE CLASH — PLAYER ${game.clash.winnerSide} WINS · ${damageToP1+damageToP2}% DAMAGE`,true);
           updatePowerLinesHUD();
           game.clash.timer = 0;
