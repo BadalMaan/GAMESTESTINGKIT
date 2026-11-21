@@ -2091,7 +2091,7 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
     const model = hero.scene;
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
-    model.scale.setScalar(1.75 / Math.max(size.y, .01));
+    model.scale.setScalar(1.42 / Math.max(size.y, .01));
     const scaled = new THREE.Box3().setFromObject(model);
     model.position.y -= scaled.min.y;
     attachArmor(hero, side);
@@ -2135,14 +2135,14 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
     const w = Math.max(1, host.clientWidth || 900), h = Math.max(1, host.clientHeight || 520);
     camera.aspect = w / h;
     // Portrait screens need a wider view so both complete fighters remain visible.
-    camera.fov = w / h < 1.2 ? 48 : 40;
-    camera.position.set(0, w / h < 1.2 ? 2.45 : 2.25, w / h < 1.2 ? 11.8 : 10.2);
-    camera.lookAt(0, 1.05, 0);
+    camera.fov = w / h < 1.2 ? 58 : 52;
+    camera.position.set(0, w / h < 1.2 ? 2.8 : 2.55, w / h < 1.2 ? 15.5 : 14.2);
+    camera.lookAt(0, 1.35, 0);
     camera.updateProjectionMatrix();
     renderer.setSize(w,h,false);
     const span = Math.min(1.0, w / 1050);
     fighters.forEach((f,i) => {
-      f.root.position.x = (i === 0 ? -2.05 : 2.05) * span;
+      f.root.position.x = (i === 0 ? -2.8 : 2.8) * span;
       f.root.rotation.y = i === 0 ? Math.PI / 2 : -Math.PI / 2;
     });
   }
@@ -2189,7 +2189,7 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
       else if (q.anim === 'block') { state='block'; clip=f.clips.block || f.clips.idle; loop=true; }
       else if (q.anim === 'walk') { state='walk'; clip=f.clips.walk || f.clips.idle; loop=true; }
       if (state !== f.lastState) { transition(f,clip,loop); f.lastState=state; }
-      const x = (i===0?-2.05:2.05)*Math.min(1,host.clientWidth/1050);
+      const x = (i===0?-2.8:2.8)*Math.min(1,host.clientWidth/1050);
       f.root.position.x = x + (q.recoil || 0) * .012;
       f.root.position.y = fallen ? -.04 : 0;
       f.root.rotation.z = i===0 ? (fallen ? -.88 : 0) : (fallen ? .88 : 0);
