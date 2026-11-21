@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Global Super Hero — V6 Power Clash Arena</title>
+  <title>Global Super Hero — Final Power Clash Arena</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -211,6 +211,9 @@
   .power-inventory{background:rgba(255,255,255,.94)!important;color:#173d5d!important;border:1px solid #a9cfe3!important;box-shadow:0 3px 10px rgba(35,85,125,.10)!important;backdrop-filter:none!important}
   .power-inventory strong{color:#1b5a83!important}.power-chip{color:#173d5d!important;box-shadow:none!important}
 </style>
+
+<style>#battle3DOverlay{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;display:block}#battleCanvas{position:relative;z-index:1}#battle3DOverlay canvas{display:block;width:100%;height:100%}</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body class="w-screen h-dvh overflow-hidden bg-slate-100 text-slate-900 flex flex-col"><button id="exitWebsiteDashboard" type="button" aria-label="Return to website dashboard">← DASHBOARD</button>
 
@@ -384,7 +387,7 @@
 
     <!-- Center Battle Canvas -->
     <main class="relative flex-1 min-h-0 w-full max-w-7xl mx-auto my-1.5 rounded-3xl overflow-hidden border-2 border-slate-300 shadow-lg bg-sky-200">
-      <canvas id="battleCanvas"></canvas>
+      <canvas id="battleCanvas"></canvas><div id="battle3DOverlay" aria-hidden="true"></div>
       <div id="p1PowerInventory" class="power-inventory left"><strong>PLAYER 1 · POWER ARSENAL</strong><div class="power-list"></div></div>
       <div id="p2PowerInventory" class="power-inventory right"><strong>PLAYER 2 · POWER ARSENAL</strong><div class="power-list"></div></div>
 
@@ -497,25 +500,64 @@
         this.ensure();
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
-        // Cinematic double-layer impact: deep bass punch plus a crisp collision crack.
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(155, now);
-        osc.frequency.exponentialRampToValueAtTime(38, now + 0.42);
-        gain.gain.setValueAtTime(0.30, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.46);
-        osc.connect(gain); gain.connect(this.ctx.destination);
-        osc.start(now); osc.stop(now + 0.48);
+        // Heavy cinematic collision: sub-bass boom, distorted body and a short debris crack.
+        const sub = this.ctx.createOscillator();
+        const subGain = this.ctx.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(92, now);
+        sub.frequency.exponentialRampToValueAtTime(27, now + 0.72);
+        subGain.gain.setValueAtTime(0.62, now);
+        subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.78);
+        sub.connect(subGain); subGain.connect(this.ctx.destination);
+        sub.start(now); sub.stop(now + 0.8);
+        const body = this.ctx.createOscillator();
+        const bodyGain = this.ctx.createGain();
+        body.type = 'sawtooth';
+        body.frequency.setValueAtTime(210, now + 0.015);
+        body.frequency.exponentialRampToValueAtTime(48, now + 0.34);
+        bodyGain.gain.setValueAtTime(0.20, now + 0.015);
+        bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+        body.connect(bodyGain); bodyGain.connect(this.ctx.destination);
+        body.start(now + 0.015); body.stop(now + 0.4);
         const crack = this.ctx.createOscillator();
         const crackGain = this.ctx.createGain();
         crack.type = 'triangle';
-        crack.frequency.setValueAtTime(980, now + 0.012);
-        crack.frequency.exponentialRampToValueAtTime(170, now + 0.16);
-        crackGain.gain.setValueAtTime(0.13, now + 0.012);
-        crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
+        crack.frequency.setValueAtTime(1250, now + 0.025);
+        crack.frequency.exponentialRampToValueAtTime(115, now + 0.22);
+        crackGain.gain.setValueAtTime(0.17, now + 0.025);
+        crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
         crack.connect(crackGain); crackGain.connect(this.ctx.destination);
-        crack.start(now + 0.012); crack.stop(now + 0.20);
+        crack.start(now + 0.025); crack.stop(now + 0.25);
+      }
+      playPower(powerId) {
+        this.ensure();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const presets = {
+          fire: [150, 720, 'sawtooth', .16],
+          water: [520, 180, 'sine', .14],
+          thunder: [980, 95, 'square', .13],
+          phoenix: [260, 880, 'sawtooth', .17],
+          megapower: [72, 34, 'sawtooth', .24],
+          shield: [420, 760, 'triangle', .12]
+        };
+        const preset = presets[powerId];
+        if (!preset) return;
+        const [start, end, type, volume] = preset;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+        osc.type = type;
+        osc.frequency.setValueAtTime(start, now);
+        if (powerId === 'water') osc.frequency.exponentialRampToValueAtTime(end, now + .42);
+        else osc.frequency.exponentialRampToValueAtTime(end, now + .30);
+        filter.type = powerId === 'fire' || powerId === 'phoenix' ? 'lowpass' : 'lowpass';
+        filter.frequency.setValueAtTime(powerId === 'thunder' ? 2400 : 1400, now);
+        filter.frequency.exponentialRampToValueAtTime(180, now + .38);
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(.001, now + (powerId === 'megapower' ? .72 : .43));
+        osc.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + (powerId === 'megapower' ? .74 : .45));
       }
       playDraw() {
         this.ensure();
@@ -672,10 +714,17 @@
     const loserVoice = new Audio('https://www.myinstants.com/media/sounds/get-out-loser.mp3');
     hitVoice.preload = 'auto';
     loserVoice.preload = 'auto';
+    let activeVoiceClip = null;
     function playVoiceClip(audio) {
+      // Voice clips are mutually exclusive: never layer the hit cry and loser taunt.
       try {
+        if (activeVoiceClip && activeVoiceClip !== audio) {
+          activeVoiceClip.pause();
+          activeVoiceClip.currentTime = 0;
+        }
         audio.pause();
         audio.currentTime = 0;
+        activeVoiceClip = audio;
         const playback = audio.play();
         if (playback && typeof playback.catch === 'function') playback.catch(() => {});
       } catch (_) { /* Sound clips are optional; combat never depends on audio. */ }
@@ -1555,6 +1604,9 @@
           game.phase = 'TRAVEL_TO_CENTER';
           game.clash.timer = 0;
           sfx.playLaunch();
+          // Give each selected element its own short cue, staggered so they remain distinct.
+          sfx.playPower(game.p1.pickedPower.id);
+          window.setTimeout(() => sfx.playPower(game.p2.pickedPower.id), 560);
           setStatusPill(`${game.p1.pickedPower.name}  VS  ${game.p2.pickedPower.name}`, true);
         }
       } else if (game.phase === 'TRAVEL_TO_CENTER') {
@@ -1616,13 +1668,9 @@
           if(damageToP1>0){game.p1.hurtTimer=1.2;game.p1.fallTimer=1.35;game.p1.recoilX=-34;game.p1.anim='fall';}
           if(damageToP2>0){game.p2.hurtTimer=1.2;game.p2.fallTimer=1.35;game.p2.recoilX=34;game.p2.anim='fall';}
           if (damageToP1 > 0 || damageToP2 > 0) {
-            const loserName = damageToP1 > 0 ? game.p1.name : game.p2.name;
-            const winnerName = damageToP1 > 0 ? game.p2.name : game.p1.name;
+            // The hit cry plays only when a fighter actually takes damage.
+            // The loser taunt is reserved for the final match result below.
             playVoiceClip(hitVoice);
-            // A playful taunt is occasional, not every single exchange.
-            if (Math.random() < 0.42) {
-              window.setTimeout(() => playVoiceClip(loserVoice), 1250);
-            }
           }
           if(shieldActive) setStatusPill('SHIELD ACTIVATED — NO DAMAGE',true);
           else if(megaClash) setStatusPill('MEGAPOWER VS MEGAPOWER — ZERO DAMAGE',true);
@@ -1663,6 +1711,8 @@
       winP.anim = 'win';
       loseP.anim = 'lose';
       sfx.playWinFanfare();
+      // At match end, play the loser clip once, after the victory fanfare.
+      window.setTimeout(() => playVoiceClip(loserVoice), 1550);
       setStatusPill(`${winP.name} WINS!`, true);
 
       const cx = battleCanvas.width * 0.5;
@@ -1752,14 +1802,15 @@
       const p2X = w * 0.825;
       const scale = Math.max(1.15, Math.min(2.15, h / 235));
 
-      drawRealisticHero(
-        ctx, p1X, groundY, scale, 1,
-        game.p1.hero, game.p1.anim, game.time, game.p1.hurtTimer, game.p1.recoilX, game.p1.fallTimer
-      );
-      drawRealisticHero(
-        ctx, p2X, groundY, scale, -1,
-        game.p2.hero, game.p2.anim, game.time, game.p2.hurtTimer, game.p2.recoilX, game.p2.fallTimer
-      );
+      // Keep the original art as a fallback until the two rigged 3D heroes load.
+      if (!window.gsh3dReady) {
+        drawRealisticHero(ctx, p1X, groundY, scale, 1, game.p1.hero, game.p1.anim, game.time, game.p1.hurtTimer, game.p1.recoilX, game.p1.fallTimer);
+        drawRealisticHero(ctx, p2X, groundY, scale, -1, game.p2.hero, game.p2.anim, game.time, game.p2.hurtTimer, game.p2.recoilX, game.p2.fallTimer);
+      } else {
+        window.gsh3dFrame = { w, h, time: game.time, phase: game.phase,
+          p1: { anim: game.p1.anim, hurt: game.p1.hurtTimer, fall: game.p1.fallTimer, recoil: game.p1.recoilX },
+          p2: { anim: game.p2.anim, hurt: game.p2.hurtTimer, fall: game.p2.fallTimer, recoil: game.p2.recoilX } };
+      }
 
       // Central collision vortex: opposing elemental force compresses, pulses and fractures.
       if (game.phase === 'CENTER_CLASH') {
@@ -1919,5 +1970,43 @@
     resizeAllCanvases();
     requestAnimationFrame(mainLoop);
   </script>
-</body>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+(() => {
+ const host=document.getElementById('battle3DOverlay'); if(!host)return;
+ const MODEL_URL='https://grab3d.com/dl/man-base-character-rigged/man-base-character-rigged.glb';
+ const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'high-performance'});
+ renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.25)); renderer.setSize(host.clientWidth||900,host.clientHeight||520,false);
+ renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12; renderer.setClearColor(0,0); host.appendChild(renderer.domElement);
+ const scene=new THREE.Scene(), camera=new THREE.OrthographicCamera(-8,8,4.5,-4.5,.1,80); camera.position.set(0,3.0,18); camera.lookAt(0,1,0);
+ scene.add(new THREE.HemisphereLight(0xe6f6ff,0x7b8795,2.1));
+ const sun=new THREE.DirectionalLight(0xfff2dc,3.0);sun.position.set(-4,9,8);scene.add(sun);
+ const fill=new THREE.DirectionalLight(0x9edcff,1.4);fill.position.set(5,4,4);scene.add(fill);
+ const rim=new THREE.DirectionalLight(0xffffff,1.5);rim.position.set(0,5,-7);scene.add(rim);
+ const fighters=[], loader=new GLTFLoader(); let loaded=false,failed=false,last=performance.now();
+ const mat=(c,m=.72,r=.25,e=0)=>new THREE.MeshStandardMaterial({color:c,metalness:m,roughness:r,emissive:e,emissiveIntensity:.6});
+ function armor(model,side){
+  const blue=side==='blue',main=mat(blue?0x124f9e:0x9b2639,.8,.22),accent=mat(blue?0x49c8ff:0xff7658,.72,.2,blue?0x0877cc:0x8e1608),dark=mat(0x172335,.65,.3),glow=mat(blue?0x5be0ff:0xff9a72,.35,.18,blue?0x159bd4:0xc92d12);
+  const bone=terms=>{let found=null;model.traverse(o=>{if(!found&&o.isBone&&terms.some(t=>o.name.toLowerCase().includes(t)))found=o});return found};
+  const add=(p,g,m,pos,sc,rot=[0,0,0])=>{if(!p)return;const o=new THREE.Mesh(g,m);o.position.set(...pos);o.scale.set(...sc);o.rotation.set(...rot);o.castShadow=true;p.add(o);return o};
+  const chest=bone(['spine2','spine_03','chest','spine1','spine']),hips=bone(['hips','pelvis']),head=bone(['head']),arms=[bone(['leftarm','upperarm_l','upper_arm.l']),bone(['rightarm','upperarm_r','upper_arm.r'])];
+  add(chest,new THREE.SphereGeometry(.31,32,24),main,[0,.05,.1],[1.28,1.06,.48]);
+  add(chest,new THREE.SphereGeometry(.22,28,20),accent,[0,.06,.245],[.82,.75,.25]);
+  add(chest,new THREE.BoxGeometry(.2,.13,.06),glow,[0,.03,.36],[1,1,1]);
+  add(hips,new THREE.BoxGeometry(.44,.15,.3),dark,[0,0,0],[1,1,1]);
+  add(hips,new THREE.BoxGeometry(.16,.13,.04),glow,[0,0,.17],[1,1,1]);
+  arms.forEach(b=>{add(b,new THREE.SphereGeometry(.17,24,18),accent,[0,0,0],[1.28,1,.98]);add(b,new THREE.CylinderGeometry(.105,.13,.34,20),main,[0,-.25,0],[1,1,1]);if(b){const ring=new THREE.Mesh(new THREE.TorusGeometry(.125,.035,8,24),glow);ring.rotation.x=Math.PI/2;ring.position.set(0,-.42,.02);b.add(ring)}});
+  if(head){add(head,new THREE.SphereGeometry(.285,24,18),dark,[0,.20,-.015],[1.08,.48,1.02]);add(head,new THREE.BoxGeometry(.38,.075,.08),glow,[0,.02,.235],[1,1,1]);}
+  const cape=add(chest,new THREE.BoxGeometry(.72,.95,.035),blue?dark:main,[0,-.52,-.34],[1,1,1],[.12,0,0]);if(cape)cape.material.side=THREE.DoubleSide;
+  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material&&'roughness'in o.material)o.material.roughness=Math.max(.3,o.material.roughness||.55)}});
+ }
+ function build(gltf,side){const model=gltf.scene.clone(true);const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3());model.scale.setScalar(2.55/Math.max(size.y,.01));const b2=new THREE.Box3().setFromObject(model);model.position.y-=b2.min.y;armor(model,side);const root=new THREE.Group();root.add(model);scene.add(root);const mixer=new THREE.AnimationMixer(model),clips=gltf.animations||[],walk=clips.find(c=>/walk/i.test(c.name)),run=clips.find(c=>/run/i.test(c.name));const walkAction=walk?mixer.clipAction(walk):null,runAction=run?mixer.clipAction(run):null;if(walkAction)walkAction.play();if(runAction)runAction.play();const bones={};model.traverse(o=>{if(o.isBone)bones[o.name.toLowerCase()]=o});return {root,model,mixer,walkAction,runAction,bones,side};}
+ loader.load(MODEL_URL,g=>{fighters.push(build(g,'blue'),build(g,'red'));loaded=true;window.gsh3dReady=true;window.gsh3dAssetStatus='loaded';resize()},undefined,e=>{console.warn('3D model unavailable; keeping original fighter artwork.',e);failed=true;window.gsh3dAssetStatus='fallback';renderer.dispose();host.replaceChildren()});
+ function resize(){const w=host.clientWidth||900,h=host.clientHeight||520,aspect=w/h,vh=4.25,vw=vh*aspect;camera.left=-vw/2;camera.right=vw/2;camera.top=vh/2;camera.bottom=-vh/2;camera.updateProjectionMatrix();renderer.setSize(w,h,false);fighters.forEach((f,i)=>f.root.position.x=(i===0?-.325:.325)*vw)}
+ new ResizeObserver(resize).observe(host);resize();
+ function frame(now){requestAnimationFrame(frame);if(!loaded||failed)return;const dt=Math.min(.04,(now-last)/1000);last=now;const d=window.gsh3dFrame||{},vh=4.25,vw=vh*(host.clientWidth/Math.max(host.clientHeight,1));fighters.forEach((f,i)=>{const q=i===0?d.p1:d.p2||{},fall=Math.min(1,(q.fall||0)/1.15),hurt=(q.hurt||0)>0;f.root.position.x=(i===0?-.325:.325)*vw+(q.recoil||0)*.01;f.root.position.y=-.18*fall;f.root.rotation.z=(i===0?-1:1)*(fall*.95+(hurt?.12:0));f.root.rotation.y=i===0?-.16:Math.PI+.16;const moving=q.anim==='cast';if(f.walkAction){f.walkAction.enabled=true;f.walkAction.setEffectiveWeight(moving?.75:0);f.walkAction.timeScale=1;}if(f.runAction)f.runAction.setEffectiveWeight(0);f.mixer.update(dt);f.bones&&Object.entries(f.bones).forEach(([n,b])=>{if(n.includes('spine')||n.includes('chest'))b.rotation.x+=Math.sin((d.time||now/1000)*2.5+i)*.006;if(n.includes('head')&&hurt)b.rotation.z+=(i===0?-.08:.08)})});renderer.render(scene,camera)}
+ requestAnimationFrame(frame);window.addEventListener('pagehide',()=>renderer.dispose());
+})();
+</script></body>
 </html>
