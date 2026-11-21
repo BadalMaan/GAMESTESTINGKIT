@@ -742,16 +742,23 @@
     const loserVoice = new Audio('https://www.myinstants.com/media/sounds/get-out-loser.mp3');
     hitVoice.preload = 'auto';
     loserVoice.preload = 'auto';
+    hitVoice.loop = false;
+    loserVoice.loop = false;
+    hitVoice.playbackRate = 1;
+    loserVoice.playbackRate = 1;
     let activeVoiceClip = null;
     function playVoiceClip(audio) {
-      // Voice clips are mutually exclusive: never layer the hit cry and loser taunt.
+      // Let an active voice clip finish naturally; never cut the hurt cry in half
+      // by restarting it on a repeated damage callback.
       try {
+        if (activeVoiceClip === audio && !audio.paused && !audio.ended) return;
         if (activeVoiceClip && activeVoiceClip !== audio) {
           activeVoiceClip.pause();
           activeVoiceClip.currentTime = 0;
         }
         audio.pause();
         audio.currentTime = 0;
+        audio.playbackRate = 1;
         activeVoiceClip = audio;
         const playback = audio.play();
         if (playback && typeof playback.catch === 'function') playback.catch(() => {});
@@ -1683,8 +1690,8 @@ const p1NameInput = document.getElementById('p1NameInput');
           }
           game.p1.power=Math.max(0,game.p1.power-damageToP1);
           game.p2.power=Math.max(0,game.p2.power-damageToP2);
-          if(damageToP1>0){game.p1.hurtTimer=1.2;game.p1.fallTimer=1.35;game.p1.recoilX=-34;game.p1.anim='fall';}
-          if(damageToP2>0){game.p2.hurtTimer=1.2;game.p2.fallTimer=1.35;game.p2.recoilX=34;game.p2.anim='fall';}
+          if(damageToP1>0){game.p1.hurtTimer=1.2;game.p1.fallTimer=2.5;game.p1.recoilX=-34;game.p1.anim='fall';}
+          if(damageToP2>0){game.p2.hurtTimer=1.2;game.p2.fallTimer=2.5;game.p2.recoilX=34;game.p2.anim='fall';}
           if (damageToP1 > 0 || damageToP2 > 0) {
             // The hit cry plays only when a fighter actually takes damage.
             // The loser taunt is reserved for the final match result below.
@@ -1729,8 +1736,16 @@ const p1NameInput = document.getElementById('p1NameInput');
       winP.anim = 'win';
       loseP.anim = 'lose';
       sfx.playWinFanfare();
-      // At match end, play the loser clip once, after the victory fanfare.
-      window.setTimeout(() => playVoiceClip(loserVoice), 1550);
+      // At match end, never cut off the AHHH clip. If it is still playing,
+      // wait for its ended event; otherwise let the victory sting finish first.
+      const playLoserAfterHit = () => {
+        if (!hitVoice.paused && !hitVoice.ended) {
+          hitVoice.addEventListener('ended', () => playVoiceClip(loserVoice), { once: true });
+        } else {
+          window.setTimeout(() => playVoiceClip(loserVoice), 1850);
+        }
+      };
+      playLoserAfterHit();
       setStatusPill(`${winP.name} WINS!`, true);
 
       const cx = battleCanvas.width * 0.5;
@@ -2010,8 +2025,8 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, 1, .1, 100);
-  camera.position.set(0, 2.35, 8.2);
+  const camera = new THREE.PerspectiveCamera(42, 1, .1, 100);
+  camera.position.set(0, 2.65, 10.8);
   camera.lookAt(0, 1.25, 0);
   scene.add(new THREE.HemisphereLight(0xeaf7ff, 0x596b80, 2.15));
   const key = new THREE.DirectionalLight(0xfff7ed, 2.8); key.position.set(-4, 8, 7); scene.add(key);
@@ -2076,7 +2091,7 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
     const model = hero.scene;
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
-    model.scale.setScalar(2.55 / Math.max(size.y, .01));
+    model.scale.setScalar(1.75 / Math.max(size.y, .01));
     const scaled = new THREE.Box3().setFromObject(model);
     model.position.y -= scaled.min.y;
     attachArmor(hero, side);
@@ -2110,15 +2125,24 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
     action.reset(); action.enabled = true; action.setEffectiveWeight(1);
     action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
     action.clampWhenFinished = !loop;
+    const clipName = (clip.name || '').toLowerCase();
+    if (/knockdown|death.?fall/.test(clipName)) action.timeScale = 0.72;
+    else if (/get.?up/.test(clipName)) action.timeScale = 0.82;
+    else action.timeScale = 1;
     action.fadeIn(.18).play(); f.current = action; f.currentClip = clip;
   }
   function resize() {
     const w = Math.max(1, host.clientWidth || 900), h = Math.max(1, host.clientHeight || 520);
-    camera.aspect = w / h; camera.fov = w / h < 1.2 ? 39 : 32; camera.updateProjectionMatrix();
+    camera.aspect = w / h;
+    // Portrait screens need a wider view so both complete fighters remain visible.
+    camera.fov = w / h < 1.2 ? 48 : 40;
+    camera.position.set(0, w / h < 1.2 ? 2.45 : 2.25, w / h < 1.2 ? 11.8 : 10.2);
+    camera.lookAt(0, 1.05, 0);
+    camera.updateProjectionMatrix();
     renderer.setSize(w,h,false);
     const span = Math.min(1.0, w / 1050);
     fighters.forEach((f,i) => {
-      f.root.position.x = (i === 0 ? -2.15 : 2.15) * span;
+      f.root.position.x = (i === 0 ? -2.05 : 2.05) * span;
       f.root.rotation.y = i === 0 ? Math.PI / 2 : -Math.PI / 2;
     });
   }
@@ -2165,7 +2189,7 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
       else if (q.anim === 'block') { state='block'; clip=f.clips.block || f.clips.idle; loop=true; }
       else if (q.anim === 'walk') { state='walk'; clip=f.clips.walk || f.clips.idle; loop=true; }
       if (state !== f.lastState) { transition(f,clip,loop); f.lastState=state; }
-      const x = (i===0?-2.15:2.15)*Math.min(1,host.clientWidth/1050);
+      const x = (i===0?-2.05:2.05)*Math.min(1,host.clientWidth/1050);
       f.root.position.x = x + (q.recoil || 0) * .012;
       f.root.position.y = fallen ? -.04 : 0;
       f.root.rotation.z = i===0 ? (fallen ? -.88 : 0) : (fallen ? .88 : 0);
