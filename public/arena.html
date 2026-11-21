@@ -178,6 +178,29 @@
   @media(max-width:700px){.power-inventory{top:7px;width:44%;padding:6px}.power-chip{font-size:6px;padding:4px}.power-inventory strong{font-size:7px}.power-slot-btn{min-height:43px!important}}
 </style>
 
+
+<style id="smooth-day-fullscreen-v3">
+  html,body,#posterScreen,#selectScreen,#arenaScreen{width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important}
+  #arenaScreen{position:fixed!important;inset:0!important;padding:7px!important;gap:7px!important;background:linear-gradient(180deg,#b9e3ff 0%,#e9f7ff 43%,#d7edff 70%,#b8d8ed 100%)!important;color:#163653!important}
+  #arenaScreen header,#arenaScreen footer{width:100%!important;max-width:none!important;flex-shrink:0!important;background:rgba(250,253,255,.96)!important;color:#163653!important;border:1px solid #b7d7ed!important;box-shadow:0 3px 10px rgba(31,83,125,.10)!important;backdrop-filter:none!important}
+  #arenaScreen header span,#arenaScreen footer span{color:#163653!important}
+  #arenaScreen main{width:100%!important;max-width:none!important;flex:1 1 auto!important;min-height:0!important;min-width:0!important;background:linear-gradient(180deg,#d7efff,#a8d4f0 60%,#8dbbdb)!important;border:1px solid #8ebfe0!important;box-shadow:0 4px 16px rgba(35,85,125,.12)!important}
+  .power-inventory{background:rgba(245,251,255,.94)!important;color:#173d5d!important;border:1px solid #9fc9e7!important;box-shadow:0 3px 10px rgba(35,85,125,.10)!important;backdrop-filter:none!important}
+  .power-inventory strong{color:#1b5a83!important}.power-chip{color:#173d5d!important;background:color-mix(in srgb,var(--pc) 24%,white)!important;box-shadow:none!important}
+  #p1SlotsContainer,#p2SlotsContainer{background:rgba(214,235,250,.8)!important;perspective:700px!important}
+  .power-slot-btn{background:linear-gradient(160deg,#fff,#e5f3ff)!important;color:#173d5d!important;border:1px solid #a9cbe3!important;box-shadow:0 2px 5px rgba(30,75,110,.10)!important;will-change:transform}
+  .power-slot-btn .slot-number{color:#17476a!important;background:#d7ebfa!important}
+  .power-slot-btn.rotating{animation:wheelNumberRoll .72s cubic-bezier(.16,.78,.24,1) both!important;backface-visibility:visible!important}
+  @keyframes wheelNumberRoll{0%{transform:perspective(700px) rotateX(-360deg) translateY(18px) scale(.76);opacity:.15}55%{transform:perspective(700px) rotateX(18deg) translateY(-3px) scale(1.06);opacity:1}78%{transform:perspective(700px) rotateX(-8deg) scale(1.02)}100%{transform:perspective(700px) rotateX(0) translateY(0) scale(1);opacity:1}}
+  #p1SlotsContainer.power-active,#p2SlotsContainer.power-active{background:color-mix(in srgb,var(--selected-power) 20%,#f4faff)!important;box-shadow:0 0 0 2px var(--selected-power),0 0 12px color-mix(in srgb,var(--selected-power) 38%,transparent)!important;animation:none!important}
+  .power-slot-btn.selected-power{color:#102f48!important;box-shadow:0 0 12px var(--selected-power)!important;transform:translateY(-2px)!important}
+  #attackBtn:not(:disabled){background:linear-gradient(135deg,#168fdf,#1259b8)!important;box-shadow:0 3px 10px rgba(15,93,169,.2)!important}
+  /* Keep motion smooth and avoid expensive full-screen compositing. */
+  *,*::before,*::after{scroll-behavior:auto!important}
+  @media(prefers-reduced-motion:reduce){.power-slot-btn.rotating{animation:none!important}}
+  @media(max-width:760px){#arenaScreen{padding:4px!important;gap:4px!important}#arenaScreen header,#arenaScreen footer{padding:6px!important}.power-inventory{top:5px!important}.power-slot-btn{min-height:40px!important}}
+</style>
+
 </head>
 <body class="w-screen h-dvh overflow-hidden bg-slate-100 text-slate-900 flex flex-col"><button id="exitWebsiteDashboard" type="button" aria-label="Return to website dashboard">← DASHBOARD</button>
 
@@ -625,6 +648,26 @@
       shield: ['fire', 'frost', 'wind']
     };
 
+
+    // Short optional character voice reactions using the browser's built-in speech engine.
+    // No external audio files or network requests are needed.
+    let lastVoiceAt = 0;
+    function speakArenaLine(line, rate = 1.02, pitch = 0.82) {
+      if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return;
+      const now = Date.now();
+      if (now - lastVoiceAt < 1100) return;
+      lastVoiceAt = now;
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(line);
+        utterance.rate = rate; utterance.pitch = pitch; utterance.volume = 0.9;
+        const voices = window.speechSynthesis.getVoices();
+        const preferred = voices.find(v => /en-US|en-GB/i.test(v.lang));
+        if (preferred) utterance.voice = preferred;
+        window.speechSynthesis.speak(utterance);
+      } catch (_) { /* Voice lines are optional; game play never depends on them. */ }
+    }
+
     function resolveElementalClash(pw1, pw2) {
       // No power-strength or elemental-counter auto-winner: both attacks meet at centre.
       return (pw1 && pw2) ? (Math.random() < 0.5 ? 1 : 2) : 0;
@@ -876,7 +919,7 @@
       hudRoundNum.textContent = String(game.round).padStart(2, '0');
       updatePowerLinesHUD();
       renderSlotButtons();
-      [...p1SlotsContainer.children,...p2SlotsContainer.children].forEach((el,i)=>{el.classList.add('rotating');el.style.animationDelay=`${(i%5)*35}ms`;});
+      [...p1SlotsContainer.children,...p2SlotsContainer.children].forEach((el,i)=>{el.classList.remove('rotating'); void el.offsetWidth; el.classList.add('rotating'); el.style.animationDelay=`${(i%5)*105}ms`; el.addEventListener('animationend',()=>{el.classList.remove('rotating');el.style.animationDelay='';},{once:true});});
       updateAttackButtonState();
       setStatusPill(`ROUND ${String(game.round).padStart(2, '0')} — PICK 1–5`, true);
     }
@@ -1538,6 +1581,15 @@
           game.p2.power=Math.max(0,game.p2.power-damageToP2);
           if(damageToP1>0){game.p1.hurtTimer=1.2;game.p1.fallTimer=1.35;game.p1.recoilX=-34;game.p1.anim='fall';}
           if(damageToP2>0){game.p2.hurtTimer=1.2;game.p2.fallTimer=1.35;game.p2.recoilX=34;game.p2.anim='fall';}
+          if (damageToP1 > 0 || damageToP2 > 0) {
+            const loserName = damageToP1 > 0 ? game.p1.name : game.p2.name;
+            const winnerName = damageToP1 > 0 ? game.p2.name : game.p1.name;
+            speakArenaLine('Oooaaah!', 0.82, 0.72);
+            // A playful taunt is occasional, not every single exchange.
+            if (Math.random() < 0.42) {
+              window.setTimeout(() => speakArenaLine(`Come on, ${loserName}, loser!`, 1.08, 1.02), 1250);
+            }
+          }
           if(shieldActive) setStatusPill('SHIELD ACTIVATED — NO DAMAGE',true);
           else if(megaClash) setStatusPill('MEGAPOWER VS MEGAPOWER — ZERO DAMAGE',true);
           else setStatusPill(`CENTRE CLASH — PLAYER ${game.clash.winnerSide} WINS · ${damageToP1+damageToP2}% DAMAGE`,true);
@@ -1616,7 +1668,7 @@
       const h = posterCanvas.height;
       if (!w || !h) return;
 
-      ctx.save(); ctx.filter = 'blur(5px) saturate(1.18)'; renderSkyTerraceArena(ctx, w, h); ctx.restore();
+      ctx.save(); ctx.filter = 'none'; renderSkyTerraceArena(ctx, w, h); ctx.restore();
       const groundY = h * 0.84;
       const scale = Math.max(0.85, Math.min(1.65, h / 270));
 
@@ -1658,7 +1710,7 @@
         game.shake = 0;
       }
 
-      ctx.save(); ctx.filter = 'blur(5px) saturate(1.18)'; renderSkyTerraceArena(ctx, w, h); ctx.restore();
+      ctx.save(); ctx.filter = 'none'; renderSkyTerraceArena(ctx, w, h); ctx.restore();
 
       const groundY = h * 0.88;
       const p1X = w * 0.175;

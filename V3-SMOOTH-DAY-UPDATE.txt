@@ -1,0 +1,13 @@
+GLOBAL SUPER HERO — V3 SMOOTH DAYLIGHT UPDATE
+
+Changes in this update:
+- Full viewport arena: 100vw x 100dvh with flexible battle canvas.
+- Daytime sky-blue arena palette; removes the night/dark-glass styling.
+- Removes expensive per-frame canvas blur filter, a major source of frame drops.
+- Power slots animate as a sequential 1-to-5 wheel roll with staggered timing.
+- Optional voice reactions: hurt fighter says “Oooaaah!” and the winner may occasionally taunt the losing player by their entered name.
+- Uses browser speech synthesis; voice requires browser audio/speech support and may begin after the first player interaction.
+
+Characters remain custom canvas-drawn 2D characters with existing suit/cape/detail rendering. This update improves smoothness and presentation; it does not claim to replace them with fully rigged 3D models.
+
+Build: npm run build | Publish: dist
