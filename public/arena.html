@@ -2002,6 +2002,7 @@ const p1NameInput = document.getElementById('p1NameInput');
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 (() => {
  const host=document.getElementById('warrior3DLayer'); if(!host) return;
  const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
@@ -2017,9 +2018,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
  const key=new THREE.DirectionalLight(0xffffff,2.5); key.position.set(-3,7,6); scene.add(key);
  const rim=new THREE.DirectionalLight(0xb9dcff,1.1); rim.position.set(4,4,-4); scene.add(rim);
  const loader=new GLTFLoader();
+ loader.setMeshoptDecoder(MeshoptDecoder);
  const specs=[
-  {url:'/models/spartan-warrior.glb',x:-2.45,face:0,clips:{idle:/^idle$/i,attack:/atk01|attack/i,hit:/hurt|hit/i,walk:/mv_tar21|walk/i,fall:/shuimian|death/i,victory:/^win$/i}},
-  {url:'/models/KnightCaptain.glb',x:2.45,face:Math.PI,clips:{idle:/^idle$/i,attack:/^attack$/i,hit:/^hit$/i,walk:/walk|run/i,fall:/^death$/i,victory:/^win$/i}}
+  {url:'/models/spartan-warrior.glb',x:-1.18,face:0,clips:{idle:/^idle$/i,attack:/atk01|attack/i,hit:/hurt|hit/i,walk:/mv_tar21|walk/i,fall:/shuimian|death/i,victory:/^win$/i}},
+  {url:'/models/KnightCaptain.glb',x:1.18,face:Math.PI,clips:{idle:/^idle$/i,attack:/^attack$/i,hit:/^hit$/i,walk:/walk|run/i,fall:/^death$/i,victory:/^win$/i}}
  ];
  const fighters=[];
  function choose(clips,rx){return clips.find(c=>rx.test(c.name))||null}
@@ -2033,7 +2035,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
   const gltf=await loader.loadAsync(s.url);
   const root=new THREE.Group();root.add(gltf.scene);root.position.x=s.x;root.rotation.y=s.face;
   const box=new THREE.Box3().setFromObject(gltf.scene), size=box.getSize(new THREE.Vector3());
-  const scale=1.95/Math.max(size.y,.001);gltf.scene.scale.setScalar(scale);
+  const scale=2.35/Math.max(size.y,.001);gltf.scene.scale.setScalar(scale);
   const scaledBox=new THREE.Box3().setFromObject(gltf.scene);
   gltf.scene.position.y-=scaledBox.min.y;
   scene.add(root);
@@ -2045,9 +2047,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
  function resize(){
   const w=host.clientWidth||1,h=host.clientHeight||1;
   renderer.setSize(w,h,false);camera.aspect=w/h;
-  camera.fov=w/h<1?43:34;
-  camera.position.set(0,w/h<1?3.1:2.7,w/h<1?15.4:12.4);
-  camera.lookAt(0,1.0,0);camera.updateProjectionMatrix();
+  camera.fov=w/h<1?38:32;
+  camera.position.set(0,w/h<1?2.65:2.35,w/h<1?8.8:7.8);
+  camera.lookAt(0,1.15,0);camera.updateProjectionMatrix();
  }
  const ro=new ResizeObserver(resize);ro.observe(host);resize();
  Promise.all(specs.map(loadOne)).then(()=>{window.gsh3dReady=true;}).catch(e=>{console.error('Warrior GLB load failed:',e);window.gsh3dReady=false;});
