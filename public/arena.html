@@ -152,6 +152,30 @@
   #attackBtn:not(:disabled) { background:linear-gradient(135deg,#168fdf,#1259b8) !important; box-shadow:0 8px 24px rgba(15,93,169,.35) !important; }
 </style>
 
+
+<style id="cinematic-power-clash-upgrade">
+  :root{--arena-glass:rgba(10,25,48,.72)}
+  #arenaScreen{background:radial-gradient(ellipse at 50% 0%,#d7efff 0%,#6d9ec1 55%,#183b5c 100%)!important}
+  #arenaScreen header,#arenaScreen footer{background:rgba(8,24,45,.82)!important;border:1px solid rgba(158,216,255,.38)!important;color:#eff8ff!important;box-shadow:0 14px 42px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.12)!important;backdrop-filter:blur(18px) saturate(1.35)}
+  #arenaScreen header span,#arenaScreen footer span{color:#eaf6ff!important}
+  #arenaScreen main{border:1px solid rgba(187,228,255,.55)!important;box-shadow:0 25px 65px rgba(3,19,38,.38),inset 0 1px rgba(255,255,255,.35)!important;background:#173c5b!important}
+  .power-inventory{position:absolute;z-index:8;top:12px;width:min(39%,440px);padding:8px 10px;border:1px solid rgba(255,255,255,.34);border-radius:15px;background:rgba(5,18,36,.60);backdrop-filter:blur(13px);box-shadow:0 10px 30px rgba(0,0,0,.20);color:white;pointer-events:none}
+  .power-inventory.left{left:12px}.power-inventory.right{right:12px;text-align:right}
+  .power-inventory strong{display:block;font:900 9px/1.2 Orbitron,sans-serif;letter-spacing:.18em;color:#bfe7ff;margin-bottom:6px}
+  .power-inventory .power-list{display:flex;gap:5px;flex-wrap:wrap}.power-inventory.right .power-list{justify-content:flex-end}
+  .power-chip{font:800 8px/1 Inter,sans-serif;padding:5px 7px;border-radius:999px;border:1px solid var(--pc);color:#fff;background:color-mix(in srgb,var(--pc) 26%,rgba(4,14,30,.8));box-shadow:inset 0 1px rgba(255,255,255,.18)}
+  #p1SlotsContainer,#p2SlotsContainer{padding:5px;border-radius:15px;background:rgba(20,45,72,.08);transition:background .35s,box-shadow .35s,transform .35s;}
+  #p1SlotsContainer.power-active,#p2SlotsContainer.power-active{background:color-mix(in srgb,var(--selected-power) 30%,rgba(4,17,35,.94));box-shadow:0 0 0 2px var(--selected-power),0 0 28px color-mix(in srgb,var(--selected-power) 62%,transparent);animation:powerPanelIgnite .55s ease-out both}
+  @keyframes powerPanelIgnite{0%{transform:scale(.94);filter:brightness(2)}65%{transform:scale(1.025)}100%{transform:scale(1);filter:brightness(1)}}
+  .power-slot-btn{min-height:54px!important;border-radius:12px!important;color:#f5fbff!important;background:linear-gradient(155deg,rgba(37,66,96,.95),rgba(8,25,48,.98))!important;border:1px solid rgba(173,218,250,.35)!important;box-shadow:inset 0 1px rgba(255,255,255,.12),0 5px 14px rgba(0,0,0,.16)!important}
+  .power-slot-btn.selected-power{background:linear-gradient(145deg,color-mix(in srgb,var(--selected-power) 85%,white),color-mix(in srgb,var(--selected-power) 65%,#071a30))!important;border:2px solid white!important;box-shadow:0 0 24px var(--selected-power)!important;transform:translateY(-4px) scale(1.035)!important}
+  .power-slot-btn .slot-number{font:900 17px Orbitron,sans-serif;color:#eaf6ff}
+  #attackBtn:not(:disabled){background:linear-gradient(135deg,#39c9ff,#1766d7)!important;box-shadow:0 0 25px rgba(47,177,255,.5),inset 0 1px rgba(255,255,255,.4)!important}
+  .power-slot-btn.rotating{animation:slotWheel .58s cubic-bezier(.2,.8,.2,1)}
+  @keyframes slotWheel{0%{transform:rotateY(0) scale(.92);opacity:.35}50%{transform:rotateY(180deg) scale(1.08);filter:brightness(1.8)}100%{transform:rotateY(360deg) scale(1);opacity:1}}
+  @media(max-width:700px){.power-inventory{top:7px;width:44%;padding:6px}.power-chip{font-size:6px;padding:4px}.power-inventory strong{font-size:7px}.power-slot-btn{min-height:43px!important}}
+</style>
+
 </head>
 <body class="w-screen h-dvh overflow-hidden bg-slate-100 text-slate-900 flex flex-col"><button id="exitWebsiteDashboard" type="button" aria-label="Return to website dashboard">← DASHBOARD</button>
 
@@ -326,6 +350,8 @@
     <!-- Center Battle Canvas -->
     <main class="relative flex-1 min-h-0 w-full max-w-7xl mx-auto my-1.5 rounded-3xl overflow-hidden border-2 border-slate-300 shadow-lg bg-sky-200">
       <canvas id="battleCanvas"></canvas>
+      <div id="p1PowerInventory" class="power-inventory left"><strong>PLAYER 1 · POWER ARSENAL</strong><div class="power-list"></div></div>
+      <div id="p2PowerInventory" class="power-inventory right"><strong>PLAYER 2 · POWER ARSENAL</strong><div class="power-list"></div></div>
 
       <!-- Subtle Status Pill (No explanations) -->
       <div id="arenaStatusPill" class="hidden pointer-events-none absolute top-2.5 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-slate-900/80 text-white font-display text-[10px] sm:text-xs font-bold tracking-widest uppercase shadow z-10">
@@ -572,8 +598,10 @@
       { id: 'plasma', name: 'PLASMA', icon: '🔮', color: '#d946ef', primary: '#a21caf', core: '#fae8ff', strength: 84, style: 'plasma' },
       { id: 'shadow', name: 'SHADOW', icon: '🌑', color: '#6366f1', primary: '#4338ca', core: '#e0e7ff', strength: 80, style: 'shadow' },
       { id: 'shield', name: 'SHIELD', icon: '🛡️', color: '#3b82f6', primary: '#1d4ed8', core: '#dbeafe', strength: 74, style: 'shield' },
+      { id: 'megapower', name: 'MEGAPOWER', icon: '💥', color: '#c084fc', primary: '#7e22ce', core: '#f5d0fe', strength: 100, style: 'megapower' },
       { id: 'phoenix', name: 'PHOENIX', icon: '🦅', color: '#f43f5e', primary: '#e11d48', core: '#fef08a', strength: 88, style: 'phoenix' },
-      { id: 'solar', name: 'SOLAR', icon: '☀️', color: '#f59e0b', primary: '#d97706', core: '#ffffff', strength: 90, style: 'solar' }
+      { id: 'solar', name: 'SOLAR', icon: '☀️', color: '#f59e0b', primary: '#d97706', core: '#ffffff', strength: 90, style: 'solar' },
+      { id: 'earth', name: 'EARTH', icon: '🌋', color: '#a3a3a3', primary: '#57534e', core: '#fef3c7', strength: 80, style: 'earth' }
     ];
 
     // Logical Elemental Matchup Map:
@@ -596,18 +624,8 @@
     };
 
     function resolveElementalClash(pw1, pw2) {
-      if (!pw1 || !pw2 || pw1.id === pw2.id) {
-        return 0; // Same power => no winner
-      }
-      const p1Beats = ELEMENT_ADVANTAGES[pw1.id] || [];
-      const p2Beats = ELEMENT_ADVANTAGES[pw2.id] || [];
-
-      if (p1Beats.includes(pw2.id)) return 1;
-      if (p2Beats.includes(pw1.id)) return 2;
-
-      if (pw1.strength > pw2.strength) return 1;
-      if (pw2.strength > pw1.strength) return 2;
-      return 0;
+      // No power-strength or elemental-counter auto-winner: both attacks meet at centre.
+      return (pw1 && pw2) ? 1 : 0;
     }
 
     // =========================================================================
@@ -787,18 +805,33 @@
       game.p2.name = n2;
       hudP1Name.textContent = n1;
       hudP2Name.textContent = n2;
+      document.querySelector('#p1PowerInventory strong').textContent = `${n1} · POWER ARSENAL`;
+      document.querySelector('#p2PowerInventory strong').textContent = `${n2} · POWER ARSENAL`;
     }
 
     // =========================================================================
     // 5. ROUND ROLL, 1-5 SLOTS & ATTACK TRIGGER
     // =========================================================================
-    function rollFivePowers() {
-      const pool = [...POWER_ARSENAL];
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-      }
-      return pool.slice(0, 5);
+    const PLAYER_POWER_SETS = {
+      1: ['fire','shield','megapower','thunder','phoenix'],
+      2: ['water','shield','megapower','frost','wind']
+    };
+    function rollFivePowers(playerNum) {
+      const ids = PLAYER_POWER_SETS[playerNum];
+      const rotation = (game.round - 1) % ids.length;
+      const rotated = ids.slice(rotation).concat(ids.slice(0, rotation));
+      return rotated.map(id => POWER_ARSENAL.find(power => power.id === id)).filter(Boolean);
+    }
+    function renderPowerInventories(){
+      [1,2].forEach(n=>{
+        const p=n===1?game.p1:game.p2;
+        const root=document.querySelector(`#p${n}PowerInventory .power-list`);
+        if(!root)return;
+        root.innerHTML=PLAYER_POWER_SETS[n].map(id=>{
+          const pw=POWER_ARSENAL.find(x=>x.id===id);
+          return `<span class="power-chip" style="--pc:${pw.color}">${pw.icon} ${pw.name}</span>`;
+        }).join('');
+      });
     }
 
     function startNewRound(resetPowers = false) {
@@ -811,8 +844,9 @@
       }
 
       game.phase = 'PICKING';
-      game.p1.slots = rollFivePowers();
-      game.p2.slots = rollFivePowers();
+      game.p1.slots = rollFivePowers(1);
+      game.p2.slots = rollFivePowers(2);
+      renderPowerInventories();
       game.p1.pickedIndex = null;
       game.p2.pickedIndex = null;
       game.p1.pickedPower = null;
@@ -836,6 +870,7 @@
       hudRoundNum.textContent = String(game.round).padStart(2, '0');
       updatePowerLinesHUD();
       renderSlotButtons();
+      [...p1SlotsContainer.children,...p2SlotsContainer.children].forEach((el,i)=>{el.classList.add('rotating');el.style.animationDelay=`${(i%5)*35}ms`;});
       updateAttackButtonState();
       setStatusPill(`ROUND ${String(game.round).padStart(2, '0')} — PICK 1–5`, true);
     }
@@ -855,54 +890,25 @@
     }
 
     function renderSlotButtons() {
-      p1SlotsContainer.innerHTML = '';
-      p2SlotsContainer.innerHTML = '';
-
+      p1SlotsContainer.innerHTML = ''; p2SlotsContainer.innerHTML = '';
       const canPick = game.phase === 'PICKING';
-
-      for (let i = 0; i < 5; i++) {
-        // Player 1 slot
-        const pw1 = game.p1.slots[i];
-        const picked1 = game.p1.pickedIndex === i;
-        const btn1 = document.createElement('button');
-        btn1.type = 'button';
-        btn1.disabled = !canPick;
-
-        if (picked1 && pw1) {
-          btn1.className = 'power-slot-btn py-2 px-1 rounded-xl border-2 border-blue-600 bg-blue-50 text-blue-950 font-display font-black text-[10px] sm:text-xs flex flex-col items-center justify-center leading-tight shadow-sm cursor-pointer';
-          btn1.innerHTML = `<span class="text-sm leading-none">${pw1.icon}</span><span class="mt-0.5 truncate max-w-full">${pw1.name}</span>`;
-        } else {
-          btn1.className = 'power-slot-btn py-2 px-1 rounded-xl border border-slate-300 bg-slate-50 hover:border-blue-500 hover:bg-sky-50 text-slate-800 font-display font-black text-xs sm:text-sm flex items-center justify-center cursor-pointer';
-          btn1.textContent = String(i + 1);
+      [1,2].forEach(playerNum=>{
+        const p=playerNum===1?game.p1:game.p2;
+        const container=playerNum===1?p1SlotsContainer:p2SlotsContainer;
+        container.classList.toggle('power-active',p.pickedPower!==null);
+        if(p.pickedPower) container.style.setProperty('--selected-power',p.pickedPower.color);
+        else container.style.removeProperty('--selected-power');
+        for(let i=0;i<5;i++){
+          const pw=p.slots[i], selected=p.pickedIndex===i;
+          const btn=document.createElement('button');btn.type='button';btn.disabled=!canPick;
+          btn.className='power-slot-btn py-2 px-1 rounded-xl border font-display font-black text-xs flex flex-col items-center justify-center cursor-pointer '+(selected?'selected-power':'');
+          if(selected){btn.style.setProperty('--selected-power',pw.color);btn.innerHTML=`<span class="text-lg leading-none">${pw.icon}</span><span class="mt-1 text-[9px]">${pw.name}</span>`;}
+          else btn.innerHTML=`<span class="slot-number">${i+1}</span><span class="text-[8px] tracking-widest opacity-65 mt-1">POWER</span>`;
+          btn.addEventListener('click',()=>handleSlotPick(playerNum,i));container.appendChild(btn);
         }
-
-        btn1.addEventListener('click', () => handleSlotPick(1, i));
-        p1SlotsContainer.appendChild(btn1);
-
-        // Player 2 slot
-        const pw2 = game.p2.slots[i];
-        const picked2 = game.p2.pickedIndex === i;
-        const btn2 = document.createElement('button');
-        btn2.type = 'button';
-        btn2.disabled = !canPick;
-
-        if (picked2 && pw2) {
-          btn2.className = 'power-slot-btn py-2 px-1 rounded-xl border-2 border-orange-600 bg-orange-50 text-orange-950 font-display font-black text-[10px] sm:text-xs flex flex-col items-center justify-center leading-tight shadow-sm cursor-pointer';
-          btn2.innerHTML = `<span class="text-sm leading-none">${pw2.icon}</span><span class="mt-0.5 truncate max-w-full">${pw2.name}</span>`;
-        } else {
-          btn2.className = 'power-slot-btn py-2 px-1 rounded-xl border border-slate-300 bg-slate-50 hover:border-orange-500 hover:bg-orange-50 text-slate-800 font-display font-black text-xs sm:text-sm flex items-center justify-center cursor-pointer';
-          btn2.textContent = String(i + 1);
-        }
-
-        btn2.addEventListener('click', () => handleSlotPick(2, i));
-        p2SlotsContainer.appendChild(btn2);
-      }
-
-      p1LockBadge.textContent = game.p1.pickedIndex !== null ? 'SELECTED' : 'OPEN';
-      p1LockBadge.className = game.p1.pickedIndex !== null ? 'text-blue-600 font-black' : 'text-slate-400';
-
-      p2LockBadge.textContent = game.p2.pickedIndex !== null ? 'SELECTED' : 'OPEN';
-      p2LockBadge.className = game.p2.pickedIndex !== null ? 'text-orange-600 font-black' : 'text-slate-400';
+      });
+      p1LockBadge.textContent=game.p1.pickedIndex!==null?'SELECTED':'OPEN';
+      p2LockBadge.textContent=game.p2.pickedIndex!==null?'SELECTED':'OPEN';
     }
 
     function handleSlotPick(playerNum, slotIndex) {
@@ -957,17 +963,8 @@
       const outcome = resolveElementalClash(pw1, pw2);
       game.clash.winnerSide = outcome;
 
-      if (outcome === 1) {
-        game.clash.clashXRatio = 0.56;
-        game.clash.drainAmount = 25;
-      } else if (outcome === 2) {
-        game.clash.clashXRatio = 0.44;
-        game.clash.drainAmount = 25;
-      } else {
-        // Same power: no one wins and no power is drained
-        game.clash.clashXRatio = 0.5;
-        game.clash.drainAmount = 0;
-      }
+      game.clash.clashXRatio = 0.5;
+      game.clash.drainAmount = 0; // damage is calculated simultaneously after the centre collision
 
       sfx.playSelect(760);
       setStatusPill(`${pw1.name}  VS  ${pw2.name} — CHARGING`, true);
@@ -1112,6 +1109,40 @@
       ctx.lineTo(-2, headY - 9);
       ctx.closePath();
       ctx.fill();
+
+      // Layered specular armour details: bevels, panel seams and metallic hardware.
+      ctx.save();
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = 'rgba(2,12,28,.48)'; ctx.shadowBlur = 9; ctx.shadowOffsetY = 3;
+      const chestPlate = ctx.createLinearGradient(-17,-111,18,-78);
+      chestPlate.addColorStop(0,'rgba(255,255,255,.58)');
+      chestPlate.addColorStop(.22,hero.armorPlate);
+      chestPlate.addColorStop(.72,hero.suitSecondary);
+      chestPlate.addColorStop(1,'rgba(4,18,35,.78)');
+      ctx.fillStyle=chestPlate;
+      ctx.beginPath();ctx.moveTo(-16,-108+breath);ctx.lineTo(17,-108+breath);ctx.lineTo(12,-79+breath);ctx.lineTo(0,-73+breath);ctx.lineTo(-12,-79+breath);ctx.closePath();ctx.fill();
+      ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+      ctx.strokeStyle='rgba(255,255,255,.48)';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(-12,-103+breath);ctx.lineTo(-8,-84+breath);ctx.moveTo(12,-103+breath);ctx.lineTo(8,-84+breath);ctx.stroke();
+      // Segmented abdominal armour and illuminated energy seams.
+      ctx.strokeStyle='rgba(3,18,37,.58)';ctx.lineWidth=2;
+      [-72,-82].forEach(y=>{ctx.beginPath();ctx.moveTo(-12,y+breath);ctx.quadraticCurveTo(0,y+4+breath,12,y+breath);ctx.stroke();});
+      ctx.strokeStyle=hero.visorColor;ctx.globalAlpha=.82;ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.moveTo(-8,-77+breath);ctx.lineTo(8,-77+breath);ctx.stroke();ctx.globalAlpha=1;
+      // Metallic belt and centre core.
+      const belt=ctx.createLinearGradient(0,-62,0,-53);belt.addColorStop(0,'#f8fafc');belt.addColorStop(.5,hero.armorPlate);belt.addColorStop(1,'#64748b');
+      ctx.fillStyle=belt;ctx.fillRect(-19,-63,38,7);
+      ctx.fillStyle=hero.visorColor;ctx.beginPath();ctx.roundRect(-4,-64,9,9,2);ctx.fill();
+      // Armour edge highlights on greaves and boots add depth at full-body scale.
+      ctx.strokeStyle='rgba(255,255,255,.48)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(18,-48);ctx.lineTo(29,-16);ctx.moveTo(-17,-49);ctx.lineTo(-25,-16);ctx.stroke();
+      ctx.fillStyle=hero.armorPlate;ctx.globalAlpha=.8;
+      ctx.beginPath();ctx.roundRect(20,-20,12,4,2);ctx.fill();
+      ctx.beginPath();ctx.roundRect(-27,-20,12,4,2);ctx.fill();ctx.globalAlpha=1;
+      // Gauntlet rings and visor reflection.
+      ctx.strokeStyle=hero.visorColor;ctx.lineWidth=2;ctx.beginPath();ctx.arc(38+armReach,-68+armLift,8,-.9,.9);ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,.75)';ctx.beginPath();ctx.ellipse(8,headY-7,4,1.4,-.35,0,Math.PI*2);ctx.fill();
+      ctx.restore();
 
       // Hurt flash overlay
       if (hurtTimer > 0) {
@@ -1520,35 +1551,29 @@
       } else if (game.phase === 'SURGE_HIT') {
         game.clash.surgeProgress = Math.min(1, game.clash.surgeProgress + dt / 0.92);
         const s = game.clash.surgeProgress;
-        if (game.clash.winnerSide === 1) {
-          game.clash.p1Reach = 1 + s * 0.42;
-          game.clash.p2Reach = Math.max(0, 1 - s * 1.15);
-        } else if (game.clash.winnerSide === 2) {
-          game.clash.p2Reach = 1 + s * 0.42;
-          game.clash.p1Reach = Math.max(0, 1 - s * 1.15);
-        }
+        // Both forces remain engaged at the centre; neither side surges through first.
+        game.clash.p1Reach = 1 + s * 0.10;
+        game.clash.p2Reach = 1 + s * 0.10;
 
         if (s >= 1 && !game.clash.appliedDamage) {
           game.clash.appliedDamage = true;
           game.shake = 22;
-          const winSide = game.clash.winnerSide;
-          const winPower = winSide === 1 ? game.p1.pickedPower : game.p2.pickedPower;
-          const targetX = winSide === 1 ? w * 0.78 : w * 0.22;
-          spawnImpactBurst(targetX, h * 0.57, winPower);
-
-          if (winSide === 1) {
-            game.p2.power = Math.max(0, game.p2.power - game.clash.drainAmount);
-            game.p2.hurtTimer = 0.95;
-            game.p2.recoilX = 42;
-            game.p1.anim = 'win';
-            game.p2.anim = 'hurt';
-          } else if (winSide === 2) {
-            game.p1.power = Math.max(0, game.p1.power - game.clash.drainAmount);
-            game.p1.hurtTimer = 0.95;
-            game.p1.recoilX = -42;
-            game.p2.anim = 'win';
-            game.p1.anim = 'hurt';
+          const a=game.p1.pickedPower, b=game.p2.pickedPower;
+          spawnImpactBurst(w*.5,h*.57,a); spawnImpactBurst(w*.5,h*.57,b);
+          const shieldActive = a.id==='shield' || b.id==='shield';
+          const megaClash = a.id==='megapower' && b.id==='megapower';
+          let damageToP1=0, damageToP2=0;
+          if(!shieldActive && !megaClash){
+            damageToP1 = b.id==='megapower' ? 45 : 20;
+            damageToP2 = a.id==='megapower' ? 45 : 20;
           }
+          game.p1.power=Math.max(0,game.p1.power-damageToP1);
+          game.p2.power=Math.max(0,game.p2.power-damageToP2);
+          if(damageToP1>0){game.p1.hurtTimer=.95;game.p1.recoilX=-24;game.p1.anim='hurt';}
+          if(damageToP2>0){game.p2.hurtTimer=.95;game.p2.recoilX=24;game.p2.anim='hurt';}
+          if(shieldActive) setStatusPill('SHIELD ACTIVATED — NO DAMAGE',true);
+          else if(megaClash) setStatusPill('MEGAPOWER VS MEGAPOWER — ZERO DAMAGE',true);
+          else setStatusPill(`CENTRE CLASH — ${damageToP1}% / ${damageToP2}% DAMAGE`,true);
           updatePowerLinesHUD();
           game.clash.timer = 0;
         }
@@ -1624,7 +1649,7 @@
       const h = posterCanvas.height;
       if (!w || !h) return;
 
-      renderSkyTerraceArena(ctx, w, h);
+      ctx.save(); ctx.filter = 'blur(5px) saturate(1.18)'; renderSkyTerraceArena(ctx, w, h); ctx.restore();
       const groundY = h * 0.84;
       const scale = Math.max(0.85, Math.min(1.65, h / 270));
 
@@ -1666,7 +1691,7 @@
         game.shake = 0;
       }
 
-      renderSkyTerraceArena(ctx, w, h);
+      ctx.save(); ctx.filter = 'blur(5px) saturate(1.18)'; renderSkyTerraceArena(ctx, w, h); ctx.restore();
 
       const groundY = h * 0.88;
       const p1X = w * 0.175;
