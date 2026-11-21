@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Global Super Hero — Final Power Clash Arena</title>
+  <script type="importmap" id="ara3d-import-map">
+  {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -212,8 +215,14 @@
   .power-inventory strong{color:#1b5a83!important}.power-chip{color:#173d5d!important;box-shadow:none!important}
 </style>
 
-<style>#battle3DOverlay{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;display:block}#battleCanvas{position:relative;z-index:1}#battle3DOverlay canvas{display:block;width:100%;height:100%}</style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<style>
+  #battle3DOverlay{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;display:block;overflow:hidden}
+  #battleCanvas{position:relative;z-index:1}
+  #battle3DOverlay canvas{display:block;width:100%;height:100%}
+  #gsh3dStatus{position:absolute;z-index:12;left:50%;top:54px;transform:translateX(-50%);padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.92);border:1px solid rgba(70,130,180,.25);color:#24506d;font:800 10px/1.2 Inter,sans-serif;letter-spacing:.08em;pointer-events:none;box-shadow:0 3px 12px #16476a18}
+  #gsh3dStatus[data-state="ready"]{opacity:0;transition:opacity .5s}
+  #gsh3dStatus[data-state="error"]{background:#fff1f0;color:#a12d26}
+</style>
 </head>
 <body class="w-screen h-dvh overflow-hidden bg-slate-100 text-slate-900 flex flex-col"><button id="exitWebsiteDashboard" type="button" aria-label="Return to website dashboard">← DASHBOARD</button>
 
@@ -387,7 +396,7 @@
 
     <!-- Center Battle Canvas -->
     <main class="relative flex-1 min-h-0 w-full max-w-7xl mx-auto my-1.5 rounded-3xl overflow-hidden border-2 border-slate-300 shadow-lg bg-sky-200">
-      <canvas id="battleCanvas"></canvas><div id="battle3DOverlay" aria-hidden="true"></div>
+      <canvas id="battleCanvas"></canvas><div id="battle3DOverlay" aria-hidden="true"></div><div id="gsh3dStatus" data-state="loading">LOADING REAL HUMAN FIGHTERS…</div>
       <div id="p1PowerInventory" class="power-inventory left"><strong>PLAYER 1 · POWER ARSENAL</strong><div class="power-list"></div></div>
       <div id="p2PowerInventory" class="power-inventory right"><strong>PLAYER 2 · POWER ARSENAL</strong><div class="power-list"></div></div>
 
@@ -449,11 +458,32 @@
 
   <script>
     // =========================================================================
-    // 1. SYNTHESIZED WEB AUDIO SOUND EFFECTS (NO EXTERNAL AUDIO ASSETS)
+    // 1. LOCAL CINEMATIC SOUND ASSETS + WEB AUDIO FALLBACK
     // =========================================================================
     class ArenaSoundFX {
       constructor() {
         this.ctx = null;
+        this.files = {};
+        const files = {
+          select: 'select.wav', launch: 'launch.wav', clash: 'clash.wav', draw: 'draw.wav', victory: 'victory.wav',
+          fire: 'fire.wav', water: 'water.wav', thunder: 'thunder.wav', phoenix: 'phoenix.wav', megapower: 'megapower.wav',
+          shield: 'shield.wav', frost: 'frost.wav', wind: 'wind.wav'
+        };
+        for (const [key, file] of Object.entries(files)) {
+          const audio = new Audio('/audio/' + file);
+          audio.preload = 'auto';
+          this.files[key] = audio;
+        }
+      }
+      playFile(key) {
+        const audio = this.files[key];
+        if (!audio) return false;
+        try {
+          audio.pause(); audio.currentTime = 0;
+          const p = audio.play();
+          if (p && p.catch) p.catch(() => {});
+          return true;
+        } catch (_) { return false; }
       }
       ensure() {
         if (!this.ctx) {
@@ -465,6 +495,7 @@
         }
       }
       playSelect(pitch = 520) {
+        if (this.playFile('select')) return;
         this.ensure();
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
@@ -481,6 +512,7 @@
         osc.stop(now + 0.12);
       }
       playLaunch() {
+        if (this.playFile('launch')) return;
         this.ensure();
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
@@ -497,6 +529,7 @@
         osc.stop(now + 0.27);
       }
       playClash() {
+        if (this.playFile('clash')) return;
         this.ensure();
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
@@ -530,6 +563,7 @@
         crack.start(now + 0.025); crack.stop(now + 0.25);
       }
       playPower(powerId) {
+        if (this.playFile(powerId)) return;
         this.ensure();
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
@@ -539,7 +573,9 @@
           thunder: [980, 95, 'square', .13],
           phoenix: [260, 880, 'sawtooth', .17],
           megapower: [72, 34, 'sawtooth', .24],
-          shield: [420, 760, 'triangle', .12]
+          shield: [420, 760, 'triangle', .12],
+          frost: [1180, 260, 'sine', .15],
+          wind: [420, 90, 'sawtooth', .09]
         };
         const preset = presets[powerId];
         if (!preset) return;
@@ -560,6 +596,7 @@
         osc.start(now); osc.stop(now + (powerId === 'megapower' ? .74 : .45));
       }
       playDraw() {
+        if (this.playFile('draw')) return;
         this.ensure();
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
@@ -577,6 +614,7 @@
         });
       }
       playWinFanfare() {
+        if (this.playFile('victory')) return;
         this.ensure();
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
@@ -1971,42 +2009,188 @@
     requestAnimationFrame(mainLoop);
   </script>
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+import * as THREE from 'three';
+import { createCharacter, ANIMATIONS } from 'https://esm.sh/ara3d@0.9.0?external=three';
 (() => {
- const host=document.getElementById('battle3DOverlay'); if(!host)return;
- const MODEL_URL='https://grab3d.com/dl/man-base-character-rigged/man-base-character-rigged.glb';
- const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'high-performance'});
- renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.25)); renderer.setSize(host.clientWidth||900,host.clientHeight||520,false);
- renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12; renderer.setClearColor(0,0); host.appendChild(renderer.domElement);
- const scene=new THREE.Scene(), camera=new THREE.OrthographicCamera(-8,8,4.5,-4.5,.1,80); camera.position.set(0,3.0,18); camera.lookAt(0,1,0);
- scene.add(new THREE.HemisphereLight(0xe6f6ff,0x7b8795,2.1));
- const sun=new THREE.DirectionalLight(0xfff2dc,3.0);sun.position.set(-4,9,8);scene.add(sun);
- const fill=new THREE.DirectionalLight(0x9edcff,1.4);fill.position.set(5,4,4);scene.add(fill);
- const rim=new THREE.DirectionalLight(0xffffff,1.5);rim.position.set(0,5,-7);scene.add(rim);
- const fighters=[], loader=new GLTFLoader(); let loaded=false,failed=false,last=performance.now();
- const mat=(c,m=.72,r=.25,e=0)=>new THREE.MeshStandardMaterial({color:c,metalness:m,roughness:r,emissive:e,emissiveIntensity:.6});
- function armor(model,side){
-  const blue=side==='blue',main=mat(blue?0x124f9e:0x9b2639,.8,.22),accent=mat(blue?0x49c8ff:0xff7658,.72,.2,blue?0x0877cc:0x8e1608),dark=mat(0x172335,.65,.3),glow=mat(blue?0x5be0ff:0xff9a72,.35,.18,blue?0x159bd4:0xc92d12);
-  const bone=terms=>{let found=null;model.traverse(o=>{if(!found&&o.isBone&&terms.some(t=>o.name.toLowerCase().includes(t)))found=o});return found};
-  const add=(p,g,m,pos,sc,rot=[0,0,0])=>{if(!p)return;const o=new THREE.Mesh(g,m);o.position.set(...pos);o.scale.set(...sc);o.rotation.set(...rot);o.castShadow=true;p.add(o);return o};
-  const chest=bone(['spine2','spine_03','chest','spine1','spine']),hips=bone(['hips','pelvis']),head=bone(['head']),arms=[bone(['leftarm','upperarm_l','upper_arm.l']),bone(['rightarm','upperarm_r','upper_arm.r'])];
-  add(chest,new THREE.SphereGeometry(.31,32,24),main,[0,.05,.1],[1.28,1.06,.48]);
-  add(chest,new THREE.SphereGeometry(.22,28,20),accent,[0,.06,.245],[.82,.75,.25]);
-  add(chest,new THREE.BoxGeometry(.2,.13,.06),glow,[0,.03,.36],[1,1,1]);
-  add(hips,new THREE.BoxGeometry(.44,.15,.3),dark,[0,0,0],[1,1,1]);
-  add(hips,new THREE.BoxGeometry(.16,.13,.04),glow,[0,0,.17],[1,1,1]);
-  arms.forEach(b=>{add(b,new THREE.SphereGeometry(.17,24,18),accent,[0,0,0],[1.28,1,.98]);add(b,new THREE.CylinderGeometry(.105,.13,.34,20),main,[0,-.25,0],[1,1,1]);if(b){const ring=new THREE.Mesh(new THREE.TorusGeometry(.125,.035,8,24),glow);ring.rotation.x=Math.PI/2;ring.position.set(0,-.42,.02);b.add(ring)}});
-  if(head){add(head,new THREE.SphereGeometry(.285,24,18),dark,[0,.20,-.015],[1.08,.48,1.02]);add(head,new THREE.BoxGeometry(.38,.075,.08),glow,[0,.02,.235],[1,1,1]);}
-  const cape=add(chest,new THREE.BoxGeometry(.72,.95,.035),blue?dark:main,[0,-.52,-.34],[1,1,1],[.12,0,0]);if(cape)cape.material.side=THREE.DoubleSide;
-  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material&&'roughness'in o.material)o.material.roughness=Math.max(.3,o.material.roughness||.55)}});
- }
- function build(gltf,side){const model=gltf.scene.clone(true);const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3());model.scale.setScalar(2.55/Math.max(size.y,.01));const b2=new THREE.Box3().setFromObject(model);model.position.y-=b2.min.y;armor(model,side);const root=new THREE.Group();root.add(model);scene.add(root);const mixer=new THREE.AnimationMixer(model),clips=gltf.animations||[],walk=clips.find(c=>/walk/i.test(c.name)),run=clips.find(c=>/run/i.test(c.name));const walkAction=walk?mixer.clipAction(walk):null,runAction=run?mixer.clipAction(run):null;if(walkAction)walkAction.play();if(runAction)runAction.play();const bones={};model.traverse(o=>{if(o.isBone)bones[o.name.toLowerCase()]=o});return {root,model,mixer,walkAction,runAction,bones,side};}
- loader.load(MODEL_URL,g=>{fighters.push(build(g,'blue'),build(g,'red'));loaded=true;window.gsh3dReady=true;window.gsh3dAssetStatus='loaded';resize()},undefined,e=>{console.warn('3D model unavailable; keeping original fighter artwork.',e);failed=true;window.gsh3dAssetStatus='fallback';renderer.dispose();host.replaceChildren()});
- function resize(){const w=host.clientWidth||900,h=host.clientHeight||520,aspect=w/h,vh=4.25,vw=vh*aspect;camera.left=-vw/2;camera.right=vw/2;camera.top=vh/2;camera.bottom=-vh/2;camera.updateProjectionMatrix();renderer.setSize(w,h,false);fighters.forEach((f,i)=>f.root.position.x=(i===0?-.325:.325)*vw)}
- new ResizeObserver(resize).observe(host);resize();
- function frame(now){requestAnimationFrame(frame);if(!loaded||failed)return;const dt=Math.min(.04,(now-last)/1000);last=now;const d=window.gsh3dFrame||{},vh=4.25,vw=vh*(host.clientWidth/Math.max(host.clientHeight,1));fighters.forEach((f,i)=>{const q=i===0?d.p1:d.p2||{},fall=Math.min(1,(q.fall||0)/1.15),hurt=(q.hurt||0)>0;f.root.position.x=(i===0?-.325:.325)*vw+(q.recoil||0)*.01;f.root.position.y=-.18*fall;f.root.rotation.z=(i===0?-1:1)*(fall*.95+(hurt?.12:0));f.root.rotation.y=i===0?-.16:Math.PI+.16;const moving=q.anim==='cast';if(f.walkAction){f.walkAction.enabled=true;f.walkAction.setEffectiveWeight(moving?.75:0);f.walkAction.timeScale=1;}if(f.runAction)f.runAction.setEffectiveWeight(0);f.mixer.update(dt);f.bones&&Object.entries(f.bones).forEach(([n,b])=>{if(n.includes('spine')||n.includes('chest'))b.rotation.x+=Math.sin((d.time||now/1000)*2.5+i)*.006;if(n.includes('head')&&hurt)b.rotation.z+=(i===0?-.08:.08)})});renderer.render(scene,camera)}
- requestAnimationFrame(frame);window.addEventListener('pagehide',()=>renderer.dispose());
+  const host = document.getElementById('battle3DOverlay');
+  const status = document.getElementById('gsh3dStatus');
+  if (!host) return;
+  const setStatus = (state, message) => {
+    if (!status) return;
+    status.dataset.state = state;
+    status.textContent = message;
+  };
+  const renderer = new THREE.WebGLRenderer({ alpha:true, antialias:true, powerPreference:'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.setSize(host.clientWidth || 900, host.clientHeight || 520, false);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.12;
+  renderer.setClearColor(0x000000, 0);
+  host.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(32, 1, .1, 100);
+  camera.position.set(0, 2.35, 8.2);
+  camera.lookAt(0, 1.25, 0);
+  scene.add(new THREE.HemisphereLight(0xeaf7ff, 0x596b80, 2.15));
+  const key = new THREE.DirectionalLight(0xfff7ed, 2.8); key.position.set(-4, 8, 7); scene.add(key);
+  const fill = new THREE.DirectionalLight(0x9edcff, 1.55); fill.position.set(5, 4, 5); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffffff, 2.0); rim.position.set(0, 6, -6); scene.add(rim);
+  const groundGlow = new THREE.PointLight(0x77caff, 1.4, 9); groundGlow.position.set(0, .25, 2); scene.add(groundGlow);
+
+  const fighters = [];
+  let ready = false, last = performance.now(), frameData = {};
+  const mat = (color, metalness=.72, roughness=.28, emissive=0x000000) => new THREE.MeshStandardMaterial({ color, metalness, roughness, emissive, emissiveIntensity:.45 });
+  function findClip(hero, patterns) {
+    const list = hero.animations || [];
+    for (const pattern of patterns) {
+      const clip = list.find(c => pattern.test((c.name || '') + ' ' + (c.id || '')));
+      if (clip) return clip;
+    }
+    return null;
+  }
+  function attachArmor(hero, side) {
+    const model = hero.scene;
+    const blue = side === 'blue';
+    const primary = mat(blue ? 0x1556a5 : 0xa52e3d, .82, .24);
+    const edge = mat(blue ? 0x65d8ff : 0xff9877, .7, .22, blue ? 0x0879bd : 0x9f2517);
+    const dark = mat(blue ? 0x142b49 : 0x3b1c2a, .62, .34);
+    const glow = mat(blue ? 0x4ddcff : 0xff795e, .38, .2, blue ? 0x087ba9 : 0xb52a18);
+    const bone = (...needles) => {
+      let found = null;
+      model.traverse(o => { if (!found && o.isBone && needles.some(n => o.name.toLowerCase().includes(n))) found = o; });
+      return found;
+    };
+    const add = (parent, geometry, material, pos, scale, rot=[0,0,0]) => {
+      if (!parent) return;
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(...pos); mesh.scale.set(...scale); mesh.rotation.set(...rot);
+      mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+    };
+    const chest = bone('spine2','spine_03','chest','spine1');
+    const hips = bone('hips','pelvis');
+    const leftArm = bone('leftarm','left_arm');
+    const rightArm = bone('rightarm','right_arm');
+    const head = bone('head');
+    // Armour is layered over the human mesh; the face, hair and skin stay uncovered.
+    add(chest, new THREE.BoxGeometry(.42,.48,.12), primary, [0,.01,.105], [1,1,1], [.02,0,0]);
+    add(chest, new THREE.BoxGeometry(.30,.12,.035), edge, [0,.13,.18], [1,1,1]);
+    add(chest, new THREE.SphereGeometry(.075,20,16), glow, [0,.01,.205], [1,1,.42]);
+    add(hips, new THREE.BoxGeometry(.43,.16,.23), dark, [0,-.02,.015], [1,1,1]);
+    for (const arm of [leftArm,rightArm]) {
+      add(arm, new THREE.SphereGeometry(.15,24,18), primary, [0,-.03,0], [1.18,1,.95]);
+      add(arm, new THREE.CylinderGeometry(.105,.13,.30,20), edge, [0,-.27,.015], [1,1,1]);
+    }
+    if (head) {
+      // Small brow/temple accents sit behind the face plane and never mask eyes or mouth.
+      add(head, new THREE.BoxGeometry(.22,.045,.045), edge, [0,.11,-.12], [1,1,1]);
+    }
+    const cape = add(chest, new THREE.PlaneGeometry(.64,.90,1,1), dark, [0,-.53,-.18], [1,1,1], [.10,0,0]);
+    if (cape) { cape.material.side = THREE.DoubleSide; cape.material.transparent = true; cape.material.opacity = .86; }
+    model.traverse(o => {
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+    });
+  }
+  function createFighter(hero, side) {
+    const model = hero.scene;
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    model.scale.setScalar(2.55 / Math.max(size.y, .01));
+    const scaled = new THREE.Box3().setFromObject(model);
+    model.position.y -= scaled.min.y;
+    attachArmor(hero, side);
+    const root = new THREE.Group(); root.add(model); scene.add(root);
+    const mixer = new THREE.AnimationMixer(model);
+    const clips = {
+      idle: findClip(hero, [/fighting.?stance/i, /\bidle\b/i]),
+      walk: findClip(hero, [/\bwalk\b/i]),
+      punch: findClip(hero, [/punch.?combo/i, /\bpunch\b/i]),
+      kick: findClip(hero, [/roundhouse.?kick/i, /front.?kick/i]),
+      block: findClip(hero, [/\bblock\b/i]),
+      hit: findClip(hero, [/hit.?reaction/i, /hit.?from.?front/i]),
+      knockdown: findClip(hero, [/knockdown/i, /death.?fall.?backward/i, /death.?fall.?forward/i]),
+      getup: findClip(hero, [/get.?up.?from.?back/i, /get.?up.?from.?front/i])
+    };
+    const fighter = { hero, root, model, mixer, clips, current:null, currentClip:null, lastState:'', getupPending:false, side };
+    if (clips.idle) transition(fighter, clips.idle, true);
+    mixer.addEventListener('finished', e => {
+      if (e.action === fighter.current && fighter.getupPending) {
+        fighter.getupPending = false;
+        transition(fighter, fighter.clips.idle, true);
+        fighter.lastState = 'idle';
+      }
+    });
+    return fighter;
+  }
+  function transition(f, clip, loop=false) {
+    if (!clip || f.currentClip === clip) return;
+    if (f.current) f.current.fadeOut(.18);
+    const action = f.mixer.clipAction(clip);
+    action.reset(); action.enabled = true; action.setEffectiveWeight(1);
+    action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
+    action.clampWhenFinished = !loop;
+    action.fadeIn(.18).play(); f.current = action; f.currentClip = clip;
+  }
+  function resize() {
+    const w = Math.max(1, host.clientWidth || 900), h = Math.max(1, host.clientHeight || 520);
+    camera.aspect = w / h; camera.fov = w / h < 1.2 ? 39 : 32; camera.updateProjectionMatrix();
+    renderer.setSize(w,h,false);
+    const span = Math.min(1.0, w / 1050);
+    fighters.forEach((f,i) => {
+      f.root.position.x = (i === 0 ? -2.15 : 2.15) * span;
+      f.root.rotation.y = i === 0 ? Math.PI / 2 : -Math.PI / 2;
+    });
+  }
+  async function boot() {
+    setStatus('loading','BUILDING REAL HUMAN FIGHTERS…');
+    // Ara uses the CC0 MakeHuman human dataset and motion-captured CMU animations.
+    // Characters are built in the browser; no mannequin or external GLB URL fallback.
+    const animationIds = ANIMATIONS.filter(a => /^(combat|locomotion|actions|reactions)$/i.test(a.group || '') || /^(combat|locomotion|actions|reactions)$/i.test(a.category || '') || /hit.?reaction|knockdown|death.?fall|get.?up.?from/i.test(a.name || '')).map(a => a.id);
+    const common = { detail:'medium', animations:animationIds, carry:'none' };
+    const [blueHero, redHero] = await Promise.all([
+      createCharacter({ preset:'The Soldier', params:{ name:'Blue Champion' } }, { ...common, colors:{ outfit:'#174f9c', top:'#174f9c', jacket:'#174f9c', bottom:'#142d52', shoes:'#142d52' } }),
+      createCharacter({ preset:'The Adventurer', params:{ name:'Red Champion' } }, { ...common, colors:{ outfit:'#9e2637', top:'#9e2637', jacket:'#9e2637', bottom:'#431c2b', shoes:'#431c2b' } })
+    ]);
+    fighters.push(createFighter(blueHero,'blue'), createFighter(redHero,'red'));
+    ready = true; window.gsh3dReady = true; window.gsh3dAssetStatus = 'loaded';
+    setStatus('ready','REAL HUMAN FIGHTERS READY'); resize();
+  }
+  const observer = new ResizeObserver(resize); observer.observe(host);
+  resize();
+  boot().catch(err => {
+    console.error('Ara 3D human character build failed:',err);
+    window.gsh3dReady = false; window.gsh3dAssetStatus = 'error';
+    setStatus('error','3D HUMAN ASSETS FAILED TO LOAD — CHECK CONNECTION');
+  });
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (!ready) return;
+    const dt = Math.min(.04,(now-last)/1000); last = now;
+    const d = window.gsh3dFrame || {};
+    fighters.forEach((f,i) => {
+      const q = i === 0 ? (d.p1 || {}) : (d.p2 || {});
+      const fallen = (q.fall || 0) > 0;
+      let state = 'idle', clip = f.clips.idle, loop = true;
+      if (fallen) { state='fall'; clip=f.clips.knockdown || f.clips.hit || f.clips.idle; loop=false; f.getupPending=false; }
+      else if (f.getupPending) { state='getup'; clip=f.clips.getup || f.clips.idle; loop=false; }
+      else if (f.lastState === 'fall') { state='getup'; clip=f.clips.getup || f.clips.idle; loop=false; f.getupPending=!!f.clips.getup; }
+      else if ((q.hurt || 0) > 0) { state='hit'; clip=f.clips.hit || f.clips.knockdown || f.clips.idle; loop=false; }
+      else if (q.anim === 'cast') { state='attack'; clip=(Math.random()<.65?f.clips.punch:f.clips.kick) || f.clips.punch || f.clips.idle; loop=false; }
+      else if (q.anim === 'block') { state='block'; clip=f.clips.block || f.clips.idle; loop=true; }
+      else if (q.anim === 'walk') { state='walk'; clip=f.clips.walk || f.clips.idle; loop=true; }
+      if (state !== f.lastState) { transition(f,clip,loop); f.lastState=state; }
+      const x = (i===0?-2.15:2.15)*Math.min(1,host.clientWidth/1050);
+      f.root.position.x = x + (q.recoil || 0) * .012;
+      f.root.position.y = fallen ? -.04 : 0;
+      f.root.rotation.z = i===0 ? (fallen ? -.88 : 0) : (fallen ? .88 : 0);
+      f.mixer.update(dt);
+      if (f.hero.update) f.hero.update(dt);
+    });
+    renderer.render(scene,camera);
+  }
+  requestAnimationFrame(frame);
+  window.addEventListener('pagehide',()=>{ observer.disconnect(); renderer.dispose(); fighters.forEach(f=>f.hero.dispose && f.hero.dispose()); });
 })();
 </script></body>
 </html>
