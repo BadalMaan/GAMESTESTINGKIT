@@ -2145,8 +2145,8 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
     ];
     const common = { detail:'medium', animations:animationIds, carry:'none' };
     const [blueHero, redHero] = await Promise.all([
-      createCharacter('The MMA Fighter', { ...common, colors:{ outfit:'#174f9c', top:'#174f9c', jacket:'#174f9c', bottom:'#142d52', shoes:'#142d52' } }),
-      createCharacter('The Heavy Brute', { ...common, colors:{ outfit:'#9e2637', top:'#9e2637', jacket:'#9e2637', bottom:'#431c2b', shoes:'#431c2b' } })
+      createCharacter('The Soldier', { ...common, colors:{ outfit:'#174f9c', top:'#174f9c', jacket:'#174f9c', bottom:'#142d52', shoes:'#142d52' } }),
+      createCharacter('The Professional Hitman', { ...common, colors:{ outfit:'#9e2637', top:'#9e2637', jacket:'#9e2637', bottom:'#431c2b', shoes:'#431c2b' } })
     ]);
     fighters.push(createFighter(blueHero,'blue'), createFighter(redHero,'red'));
     ready = true; window.gsh3dReady = true; window.gsh3dAssetStatus = 'loaded';
