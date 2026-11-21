@@ -171,8 +171,10 @@
   .power-slot-btn.selected-power{background:linear-gradient(145deg,color-mix(in srgb,var(--selected-power) 85%,white),color-mix(in srgb,var(--selected-power) 65%,#071a30))!important;border:2px solid white!important;box-shadow:0 0 24px var(--selected-power)!important;transform:translateY(-4px) scale(1.035)!important}
   .power-slot-btn .slot-number{font:900 17px Orbitron,sans-serif;color:#eaf6ff}
   #attackBtn:not(:disabled){background:linear-gradient(135deg,#39c9ff,#1766d7)!important;box-shadow:0 0 25px rgba(47,177,255,.5),inset 0 1px rgba(255,255,255,.4)!important}
-  .power-slot-btn.rotating{animation:slotWheel .58s cubic-bezier(.2,.8,.2,1)}
-  @keyframes slotWheel{0%{transform:rotateY(0) scale(.92);opacity:.35}50%{transform:rotateY(180deg) scale(1.08);filter:brightness(1.8)}100%{transform:rotateY(360deg) scale(1);opacity:1}}
+  .power-slot-btn.rotating{transform-style:preserve-3d;backface-visibility:visible;animation:slotWheel .82s cubic-bezier(.18,.78,.2,1)}
+  #p1SlotsContainer,#p2SlotsContainer{perspective:900px}
+  .power-slot-btn .slot-number{display:inline-grid;place-items:center;min-width:25px;min-height:25px;border-radius:7px;background:rgba(255,255,255,.12);box-shadow:inset 0 1px rgba(255,255,255,.2)}
+  @keyframes slotWheel{0%{transform:perspective(900px) rotateY(-88deg) scale(.82);opacity:.15;filter:brightness(1.8)}38%{transform:perspective(900px) rotateY(12deg) scale(1.08);opacity:1;filter:brightness(1.45)}68%{transform:perspective(900px) rotateY(-8deg) scale(1.03)}100%{transform:perspective(900px) rotateY(0) scale(1);opacity:1;filter:brightness(1)}}
   @media(max-width:700px){.power-inventory{top:7px;width:44%;padding:6px}.power-chip{font-size:6px;padding:4px}.power-inventory strong{font-size:7px}.power-slot-btn{min-height:43px!important}}
 </style>
 
@@ -625,7 +627,7 @@
 
     function resolveElementalClash(pw1, pw2) {
       // No power-strength or elemental-counter auto-winner: both attacks meet at centre.
-      return (pw1 && pw2) ? 1 : 0;
+      return (pw1 && pw2) ? (Math.random() < 0.5 ? 1 : 2) : 0;
     }
 
     // =========================================================================
@@ -700,6 +702,7 @@
         pickedPower: null,
         anim: 'idle',
         hurtTimer: 0,
+        fallTimer: 0,
         recoilX: 0
       },
       p2: {
@@ -712,6 +715,7 @@
         pickedPower: null,
         anim: 'idle',
         hurtTimer: 0,
+        fallTimer: 0,
         recoilX: 0
       },
       clash: {
@@ -855,6 +859,8 @@
       game.p2.anim = 'idle';
       game.p1.recoilX = 0;
       game.p2.recoilX = 0;
+      game.p1.fallTimer = 0;
+      game.p2.fallTimer = 0;
 
       game.clash.timer = 0;
       game.clash.p1Reach = 0;
@@ -973,13 +979,17 @@
     // =========================================================================
     // 6. REALISTIC 2D HERO RENDERER (ATHLETIC PROPORTIONS, ARMOR & CAPE)
     // =========================================================================
-    function drawRealisticHero(ctx, cx, groundY, scale, facing, hero, animState, time, hurtTimer, recoilX) {
+    function drawRealisticHero(ctx, cx, groundY, scale, facing, hero, animState, time, hurtTimer, recoilX, fallTimer = 0) {
       ctx.save();
       const sway = Math.sin(time * 3.4) * 2.2;
       const breath = Math.cos(time * 3.4) * 1.8;
       const shakeOffset = hurtTimer > 0 ? Math.sin(time * 55) * 6 : 0;
 
       ctx.translate(cx + recoilX + shakeOffset, groundY);
+      const fallAmount = fallTimer > 0 ? Math.sin(Math.min(1, fallTimer / 1.35) * Math.PI / 2) : 0;
+      // A hit knocks the complete body sideways; the cape and limbs follow the fall.
+      ctx.rotate(-facing * fallAmount * 1.12);
+      ctx.translate(0, fallAmount * 10);
       ctx.scale(facing * scale, scale);
 
       // Ground contact shadow
@@ -1159,93 +1169,44 @@
     // 7. SKY-TERRACE MOUNTAIN ARENA BACKDROP
     // =========================================================================
     function renderSkyTerraceArena(ctx, w, h) {
-      // Blue-hour mountain arena: cinematic, readable, and deliberately not white.
-      const horizon = h * 0.55;
-      const floorY = h * 0.69;
-      const sky = ctx.createLinearGradient(0, 0, 0, h);
-      sky.addColorStop(0, '#397db7');
-      sky.addColorStop(.34, '#78b7e5');
-      sky.addColorStop(.58, '#b4d4e9');
-      sky.addColorStop(.72, '#d2e2ee');
-      sky.addColorStop(1, '#a9c4d9');
-      ctx.fillStyle = sky; ctx.fillRect(0,0,w,h);
-
-      // Cool moonlit opening in the clouds.
-      const glow = ctx.createRadialGradient(w*.5,h*.18,4,w*.5,h*.18,w*.43);
-      glow.addColorStop(0,'rgba(231,246,255,.78)');
-      glow.addColorStop(.32,'rgba(184,220,245,.34)');
-      glow.addColorStop(1,'rgba(95,155,204,0)');
-      ctx.fillStyle=glow; ctx.fillRect(0,0,w,h*.7);
-
-      // Soft cloud banks.
-      for(let i=0;i<9;i++){
-        const x=((i*173+w*.03)%(w*1.12))-w*.06;
-        const y=h*(.12+(i%4)*.075);
-        ctx.fillStyle='rgba(225,242,255,.15)';
-        ctx.beginPath();ctx.ellipse(x,y,w*(.07+(i%3)*.025),h*.018,0,0,Math.PI*2);ctx.fill();
-      }
-
-      // Layered distant mountain range.
-      function ridge(points, color) {
-        ctx.beginPath(); ctx.moveTo(0,horizon);
-        points.forEach(([x,y])=>ctx.lineTo(w*x,h*y));
-        ctx.lineTo(w,horizon);ctx.closePath();
-        ctx.fillStyle=color;ctx.fill();
-      }
-      ridge([[0,.47],[.10,.35],[.18,.43],[.29,.29],[.39,.44],[.50,.27],[.61,.43],[.72,.31],[.83,.42],[.93,.30],[1,.43]],'#7198b8');
-      ridge([[0,.53],[.12,.43],[.23,.49],[.34,.38],[.47,.51],[.59,.39],[.72,.50],[.84,.40],[.94,.48],[1,.42]],'#547d9f');
-      ridge([[0,.58],[.16,.51],[.29,.56],[.43,.47],[.56,.57],[.70,.49],[.84,.57],[1,.50]],'#416b90');
-
-      // Snow caps and fine mountain highlights.
-      ctx.fillStyle='rgba(232,245,255,.76)';
-      [[.10,.35,.035],[.29,.29,.045],[.50,.27,.05],[.72,.31,.04],[.93,.30,.04]].forEach(([x,y,r])=>{
-        ctx.beginPath();ctx.moveTo(w*x,h*y);ctx.lineTo(w*(x-r),h*(y+.045));ctx.lineTo(w*(x+r),h*(y+.045));ctx.closePath();ctx.fill();
+      // New cinematic futuristic megacity arena: deliberately soft in the distance
+      // so the fighters and saturated power collisions stay in sharp focus.
+      const horizon = h * .58, floorY = h * .70;
+      const sky = ctx.createLinearGradient(0,0,0,h);
+      sky.addColorStop(0,'#101a38'); sky.addColorStop(.38,'#263d68');
+      sky.addColorStop(.68,'#536c91'); sky.addColorStop(1,'#172943');
+      ctx.fillStyle=sky; ctx.fillRect(0,0,w,h);
+      const aurora=ctx.createRadialGradient(w*.5,h*.23,2,w*.5,h*.23,w*.58);
+      aurora.addColorStop(0,'rgba(68,190,255,.30)'); aurora.addColorStop(.45,'rgba(118,82,220,.13)'); aurora.addColorStop(1,'rgba(5,12,30,0)');
+      ctx.fillStyle=aurora;ctx.fillRect(0,0,w,h*.72);
+      // Distant futuristic skyline, intentionally softened by the caller's backdrop blur.
+      const buildings=[.09,.16,.24,.32,.40,.49,.58,.66,.75,.83,.92];
+      buildings.forEach((x,i)=>{
+        const bw=w*(.045+(i%3)*.018), bh=h*(.15+(i*7%5)*.055), y=horizon-bh;
+        const g=ctx.createLinearGradient(0,y,0,horizon);g.addColorStop(0,'#263a60');g.addColorStop(1,'#101d37');
+        ctx.fillStyle=g;ctx.fillRect(w*x,y,bw,bh);
+        ctx.fillStyle=i%2?'rgba(70,211,255,.58)':'rgba(255,94,176,.48)';
+        for(let wy=y+12;wy<horizon-8;wy+=17) for(let wx=w*x+8;wx<w*x+bw-5;wx+=13) ctx.fillRect(wx,wy,4,6);
+        ctx.fillStyle='rgba(123,185,255,.35)';ctx.fillRect(w*x+bw*.45,y-10,3,10);
       });
-
-      // Distant fortress towers framing the battlefield.
+      // Neon arena pylons frame the fighters without competing with them.
       for(const side of [0,1]){
-        const x=side===0?w*.035:w*.885, tw=w*.08, top=h*.12, bottom=floorY;
-        ctx.fillStyle='rgba(210,231,247,.78)';
-        ctx.fillRect(x,top,tw*.22,bottom-top);
-        ctx.fillRect(x+tw*.78,top,tw*.22,bottom-top);
-        ctx.fillRect(x-tw*.06,top,tw*1.12,h*.035);
-        ctx.fillStyle='rgba(65,112,153,.55)';
-        ctx.fillRect(x+tw*.34,top+h*.08,tw*.32,h*.23);
-        ctx.strokeStyle='rgba(231,245,255,.55)';ctx.lineWidth=2;
-        ctx.strokeRect(x,top,tw,bottom-top);
+        const x=side===0?w*.035:w*.925;
+        const grad=ctx.createLinearGradient(x,0,x+w*.04,0);grad.addColorStop(0,'rgba(33,177,255,.15)');grad.addColorStop(.5,'rgba(67,205,255,.8)');grad.addColorStop(1,'rgba(33,177,255,.12)');
+        ctx.fillStyle=grad;ctx.fillRect(x,h*.18,w*.04,floorY-h*.18);
+        ctx.fillStyle='rgba(106,218,255,.8)';ctx.fillRect(x,h*.18,w*.04,3);
       }
-
-      // Stone arena floor in cool slate-blue tones.
-      const floor=ctx.createLinearGradient(0,floorY,0,h);
-      floor.addColorStop(0,'#c4d9e9');floor.addColorStop(.42,'#a9c4da');floor.addColorStop(1,'#789bb9');
+      const floor=ctx.createLinearGradient(0,floorY,0,h);floor.addColorStop(0,'#344e70');floor.addColorStop(.45,'#1b304d');floor.addColorStop(1,'#0b172b');
       ctx.fillStyle=floor;ctx.fillRect(0,floorY,w,h-floorY);
-      ctx.strokeStyle='rgba(37,83,124,.25)';ctx.lineWidth=1;
-      for(let i=0;i<6;i++){
-        const yy=floorY+(h-floorY)*i/6;
-        ctx.beginPath();ctx.moveTo(w*.05,yy);ctx.lineTo(w*.95,yy);ctx.stroke();
-      }
-      ctx.strokeStyle='rgba(225,241,255,.25)';
-      for(let i=0;i<11;i++){
-        const x=w*(.04+i*.092);
-        ctx.beginPath();ctx.moveTo(w*.5,floorY);ctx.lineTo(x,h);ctx.stroke();
-      }
-
-      // Large circular combat seal, with cool luminous rings.
-      const cx=w*.5,cy=floorY+(h-floorY)*.56;
-      ctx.save();ctx.shadowColor='rgba(28,117,190,.28)';ctx.shadowBlur=24;
-      ctx.fillStyle='rgba(38,103,153,.10)';
-      ctx.beginPath();ctx.ellipse(cx,cy,w*.35,(h-floorY)*.40,0,0,Math.PI*2);ctx.fill();ctx.restore();
-      [[.35,.40,'rgba(225,243,255,.52)',3],[.28,.32,'rgba(49,129,190,.42)',2],[.18,.21,'rgba(49,129,190,.32)',2]].forEach(([rx,ry,col,lw])=>{
-        ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();ctx.ellipse(cx,cy,w*rx,(h-floorY)*ry,0,0,Math.PI*2);ctx.stroke();
-      });
-      ctx.strokeStyle='rgba(31,91,139,.22)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.moveTo(cx,floorY);ctx.lineTo(cx,h);ctx.stroke();
-
-      // Vignette adds depth without making the scene dark.
-      const vignette=ctx.createRadialGradient(w*.5,h*.45,w*.18,w*.5,h*.45,w*.78);
-      vignette.addColorStop(.55,'rgba(20,55,90,0)');
-      vignette.addColorStop(1,'rgba(18,54,88,.23)');
-      ctx.fillStyle=vignette;ctx.fillRect(0,0,w,h);
+      // Perspective grid and illuminated circular battle platform.
+      ctx.strokeStyle='rgba(81,194,255,.22)';ctx.lineWidth=1;
+      for(let i=0;i<=8;i++){const yy=floorY+(h-floorY)*i/8;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke();}
+      for(let i=0;i<=14;i++){const x=w*i/14;ctx.beginPath();ctx.moveTo(w*.5,floorY);ctx.lineTo(x,h);ctx.stroke();}
+      const cx=w*.5,cy=floorY+(h-floorY)*.54;
+      ctx.save();ctx.shadowColor='#35bfff';ctx.shadowBlur=26;ctx.strokeStyle='rgba(75,202,255,.72)';ctx.lineWidth=3;
+      ctx.beginPath();ctx.ellipse(cx,cy,w*.34,(h-floorY)*.38,0,0,Math.PI*2);ctx.stroke();
+      ctx.shadowBlur=10;ctx.strokeStyle='rgba(183,116,255,.48)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(cx,cy,w*.25,(h-floorY)*.27,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+      const vignette=ctx.createRadialGradient(w*.5,h*.45,w*.2,w*.5,h*.45,w*.82);vignette.addColorStop(.55,'rgba(3,8,22,0)');vignette.addColorStop(1,'rgba(2,7,20,.48)');ctx.fillStyle=vignette;ctx.fillRect(0,0,w,h);
     }
 
     // =========================================================================
@@ -1506,6 +1467,8 @@
     function updateCombat(dt, w, h) {
       if (game.p1.hurtTimer > 0) game.p1.hurtTimer = Math.max(0, game.p1.hurtTimer - dt);
       if (game.p2.hurtTimer > 0) game.p2.hurtTimer = Math.max(0, game.p2.hurtTimer - dt);
+      if (game.p1.fallTimer > 0) game.p1.fallTimer = Math.max(0, game.p1.fallTimer - dt);
+      if (game.p2.fallTimer > 0) game.p2.fallTimer = Math.max(0, game.p2.fallTimer - dt);
       game.p1.recoilX *= 0.86;
       game.p2.recoilX *= 0.86;
 
@@ -1563,17 +1526,21 @@
           const shieldActive = a.id==='shield' || b.id==='shield';
           const megaClash = a.id==='megapower' && b.id==='megapower';
           let damageToP1=0, damageToP2=0;
+          // Only the losing fighter is hit. A shield blocks the entire clash;
+          // Megapower vs Megapower is a perfect draw with zero damage.
           if(!shieldActive && !megaClash){
-            damageToP1 = b.id==='megapower' ? 45 : 20;
-            damageToP2 = a.id==='megapower' ? 45 : 20;
+            const winningPower = game.clash.winnerSide === 1 ? a : b;
+            const damage = winningPower.id === 'megapower' ? 45 : 20;
+            if(game.clash.winnerSide === 1) damageToP2 = damage;
+            else damageToP1 = damage;
           }
           game.p1.power=Math.max(0,game.p1.power-damageToP1);
           game.p2.power=Math.max(0,game.p2.power-damageToP2);
-          if(damageToP1>0){game.p1.hurtTimer=.95;game.p1.recoilX=-24;game.p1.anim='hurt';}
-          if(damageToP2>0){game.p2.hurtTimer=.95;game.p2.recoilX=24;game.p2.anim='hurt';}
+          if(damageToP1>0){game.p1.hurtTimer=1.2;game.p1.fallTimer=1.35;game.p1.recoilX=-34;game.p1.anim='fall';}
+          if(damageToP2>0){game.p2.hurtTimer=1.2;game.p2.fallTimer=1.35;game.p2.recoilX=34;game.p2.anim='fall';}
           if(shieldActive) setStatusPill('SHIELD ACTIVATED — NO DAMAGE',true);
           else if(megaClash) setStatusPill('MEGAPOWER VS MEGAPOWER — ZERO DAMAGE',true);
-          else setStatusPill(`CENTRE CLASH — ${damageToP1}% / ${damageToP2}% DAMAGE`,true);
+          else setStatusPill(`CENTRE CLASH — PLAYER ${game.clash.winnerSide} WINS · ${damageToP1+damageToP2}% DAMAGE`,true);
           updatePowerLinesHUD();
           game.clash.timer = 0;
         }
@@ -1700,11 +1667,11 @@
 
       drawRealisticHero(
         ctx, p1X, groundY, scale, 1,
-        game.p1.hero, game.p1.anim, game.time, game.p1.hurtTimer, game.p1.recoilX
+        game.p1.hero, game.p1.anim, game.time, game.p1.hurtTimer, game.p1.recoilX, game.p1.fallTimer
       );
       drawRealisticHero(
         ctx, p2X, groundY, scale, -1,
-        game.p2.hero, game.p2.anim, game.time, game.p2.hurtTimer, game.p2.recoilX
+        game.p2.hero, game.p2.anim, game.time, game.p2.hurtTimer, game.p2.recoilX, game.p2.fallTimer
       );
 
       // Central collision vortex: opposing elemental force compresses, pulses and fractures.
