@@ -738,13 +738,9 @@
 
 
     // User-selected voice clips hosted by MyInstants. No generated/browser speech.
-    const hitVoice = new Audio('https://www.myinstants.com/media/sounds/ahh-almost-pt2.mp3');
     const loserVoice = new Audio('https://www.myinstants.com/media/sounds/get-out-loser.mp3');
-    hitVoice.preload = 'auto';
     loserVoice.preload = 'auto';
-    hitVoice.loop = false;
     loserVoice.loop = false;
-    hitVoice.playbackRate = 1;
     loserVoice.playbackRate = 1;
     let activeVoiceClip = null;
     function playVoiceClip(audio) {
@@ -1695,7 +1691,6 @@ const p1NameInput = document.getElementById('p1NameInput');
           if (damageToP1 > 0 || damageToP2 > 0) {
             // The hit cry plays only when a fighter actually takes damage.
             // The loser taunt is reserved for the final match result below.
-            playVoiceClip(hitVoice);
           }
           if(shieldActive) setStatusPill('SHIELD ACTIVATED — NO DAMAGE',true);
           else if(megaClash) setStatusPill('MEGAPOWER VS MEGAPOWER — ZERO DAMAGE',true);
@@ -1736,16 +1731,8 @@ const p1NameInput = document.getElementById('p1NameInput');
       winP.anim = 'win';
       loseP.anim = 'lose';
       sfx.playWinFanfare();
-      // At match end, never cut off the AHHH clip. If it is still playing,
-      // wait for its ended event; otherwise let the victory sting finish first.
-      const playLoserAfterHit = () => {
-        if (!hitVoice.paused && !hitVoice.ended) {
-          hitVoice.addEventListener('ended', () => playVoiceClip(loserVoice), { once: true });
-        } else {
-          window.setTimeout(() => playVoiceClip(loserVoice), 1850);
-        }
-      };
-      playLoserAfterHit();
+      // Hurt voice is disabled. Play the loser taunt only after the victory fanfare.
+      window.setTimeout(() => playVoiceClip(loserVoice), 1850);
       setStatusPill(`${winP.name} WINS!`, true);
 
       const cx = battleCanvas.width * 0.5;
@@ -2091,7 +2078,7 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
     const model = hero.scene;
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
-    model.scale.setScalar(1.42 / Math.max(size.y, .01));
+    model.scale.setScalar(1.68 / Math.max(size.y, .01));
     const scaled = new THREE.Box3().setFromObject(model);
     model.position.y -= scaled.min.y;
     attachArmor(hero, side);
@@ -2142,8 +2129,8 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
     renderer.setSize(w,h,false);
     const span = Math.min(1.0, w / 1050);
     fighters.forEach((f,i) => {
-      f.root.position.x = (i === 0 ? -2.8 : 2.8) * span;
-      f.root.rotation.y = i === 0 ? Math.PI / 2 : -Math.PI / 2;
+      f.root.position.x = (i === 0 ? -4.5 : 4.5) * span;
+      f.root.rotation.y = i === 0 ? 0.18 : -0.18;
     });
   }
   async function boot() {
@@ -2158,8 +2145,8 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
     ];
     const common = { detail:'medium', animations:animationIds, carry:'none' };
     const [blueHero, redHero] = await Promise.all([
-      createCharacter('The Soldier', { ...common, colors:{ outfit:'#174f9c', top:'#174f9c', jacket:'#174f9c', bottom:'#142d52', shoes:'#142d52' } }),
-      createCharacter('The Professional Hitman', { ...common, colors:{ outfit:'#9e2637', top:'#9e2637', jacket:'#9e2637', bottom:'#431c2b', shoes:'#431c2b' } })
+      createCharacter('The MMA Fighter', { ...common, colors:{ outfit:'#174f9c', top:'#174f9c', jacket:'#174f9c', bottom:'#142d52', shoes:'#142d52' } }),
+      createCharacter('The Heavy Brute', { ...common, colors:{ outfit:'#9e2637', top:'#9e2637', jacket:'#9e2637', bottom:'#431c2b', shoes:'#431c2b' } })
     ]);
     fighters.push(createFighter(blueHero,'blue'), createFighter(redHero,'red'));
     ready = true; window.gsh3dReady = true; window.gsh3dAssetStatus = 'loaded';
@@ -2189,7 +2176,7 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
       else if (q.anim === 'block') { state='block'; clip=f.clips.block || f.clips.idle; loop=true; }
       else if (q.anim === 'walk') { state='walk'; clip=f.clips.walk || f.clips.idle; loop=true; }
       if (state !== f.lastState) { transition(f,clip,loop); f.lastState=state; }
-      const x = (i===0?-2.8:2.8)*Math.min(1,host.clientWidth/1050);
+      const x = (i===0?-4.5:4.5)*Math.min(1,host.clientWidth/1050);
       f.root.position.x = x + (q.recoil || 0) * .012;
       f.root.position.y = fallen ? -.04 : 0;
       f.root.rotation.z = i===0 ? (fallen ? -.88 : 0) : (fallen ? .88 : 0);
