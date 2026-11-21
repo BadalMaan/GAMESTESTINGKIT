@@ -80,14 +80,14 @@
     }
   
     #exitWebsiteDashboard {
-      position: fixed; z-index: 1000; top: 10px; left: 12px;
+      position: fixed; z-index: 1000; top: 10px; right: 12px; left: auto;
       border: 1px solid #b9d7ef; border-radius: 11px; padding: 9px 13px;
       background: rgba(255,255,255,.96); color: #16466c;
       font: 900 10px/1.2 Inter, sans-serif; letter-spacing: .12em;
       box-shadow: 0 5px 18px rgba(28,83,125,.16); cursor: pointer;
     }
     #exitWebsiteDashboard:hover { background:#e4f3ff; transform:translateY(-1px); }
-    @media(max-width:700px) { #exitWebsiteDashboard { top:6px; left:6px; padding:7px 9px; } }
+    @media(max-width:700px) { #exitWebsiteDashboard { top:6px; right:6px; left:auto; padding:7px 9px; } }
 
 </style>
 
@@ -2103,7 +2103,7 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
     const root = new THREE.Group(); root.add(model); scene.add(root);
     const mixer = new THREE.AnimationMixer(model);
     const clips = {
-      idle: findClip(hero, [/fighting.?stance/i, /\bidle\b/i]),
+      idle: findClip(hero, [/^idle$/i, /\bidle\b/i]),
       walk: findClip(hero, [/\bwalk\b/i]),
       punch: findClip(hero, [/punch.?combo/i, /\bpunch\b/i]),
       kick: findClip(hero, [/roundhouse.?kick/i, /front.?kick/i]),
@@ -2149,7 +2149,7 @@ import { createCharacter } from 'https://esm.sh/ara3d@0.11.0?external=three';
     // Ara's public API takes the preset name as the first argument and options
     // as the second. Keep the animation set small enough for a game load.
     const animationIds = [
-      'idle','fighting_stance','walk','punch_combo','front_kick','roundhouse_kick',
+      'idle','walk','punch_combo','front_kick','roundhouse_kick',
       'block','hit_reaction','hit_from_front','knockdown',
       'death_fall_backward','death_fall_forward','get_up_from_back','get_up_from_front'
     ];
