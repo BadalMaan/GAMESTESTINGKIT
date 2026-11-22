@@ -1,0 +1,1 @@
+Rigged Spartan vs Knight update. Models: public/models/spartan-warrior.glb and public/models/knight-captain.glb. Uses Three.js AnimationMixer and clips in the GLBs. Spartan clips: idle, hurt, atk01, mv_tar21, win, enter, yunxuan, shuimian. Knight clips: Idle, Walk, Run, Attack, Special, Hit, Death. Existing game logic and power system preserved.
