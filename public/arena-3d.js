@@ -1,0 +1,965 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
+
+// Every champion is a rigged GLB. Two have full combat clip sets; the four new
+// fighters ship with locomotion clips and are posed procedurally for actions.
+const CHAR_FILES = {
+  giant:     { url: '/models/animated-ogre-warrior.glb',  height: 5.15 },
+  warrior:   { url: '/models/animated-plate-knight.glb',  height: 4.95 },
+  zombie:    { url: '/models/zombie.glb',                 height: 4.85 },
+  wizard:    { url: '/models/wizard.glb',                 height: 4.95 },
+  soldier:   { url: '/models/soldier-tactical.glb',       height: 4.90 },
+  superhero: { url: '/models/superhero.glb',              height: 5.00 }
+};
+
+// Per-champion action flavour: how far they lunge, how high they leap, how they
+// react to a hit and how they celebrate. Keeps every fighter's motion distinct.
+const STYLES = {
+  giant:     { lean: 1.20, lunge: 1.22, jump: 1.10, lap: 1.10, recoil: 1.25, taunt: 'roar' },
+  warrior:   { lean: 0.95, lunge: 1.05, jump: 0.95, lap: 1.00, recoil: 1.00, taunt: 'salute' },
+  zombie:    { lean: 1.45, lunge: 0.72, jump: 0.55, lap: 0.62, recoil: 1.30, taunt: 'lurch' },
+  wizard:    { lean: 0.82, lunge: 0.68, jump: 0.80, lap: 0.72, recoil: 0.90, taunt: 'spin' },
+  soldier:   { lean: 1.00, lunge: 0.92, jump: 1.05, lap: 0.95, recoil: 1.15, taunt: 'march' },
+  superhero: { lean: 0.90, lunge: 1.35, jump: 1.45, lap: 1.25, recoil: 0.85, taunt: 'fly' }
+};
+
+// ---- Skeleton control ---------------------------------------------------
+// Both rig families are addressed through one set of slots (Mixamo style names
+// for the four new champions, lowercase names for the ogre and the knight).
+const RIG_SLOTS = {
+  pelvis: [/^Hips$/, /pelvis/i],
+  spineA: [/^Spine02$/, /^spine1$/],
+  spineB: [/^Spine01$/, /^spine2$/],
+  spineC: [/^Spine$/, /^chest$/],
+  neck:   [/^neck$/i],
+  head:   [/^Head$/i],
+  armL:   [/^LeftArm$/, /^upperarm_L$/],
+  armR:   [/^RightArm$/, /^upperarm_R$/],
+  foreL:  [/^LeftForeArm$/, /^forearm_L$/],
+  foreR:  [/^RightForeArm$/, /^forearm_R$/],
+  handL:  [/^LeftHand$/, /^hand_L$/],
+  handR:  [/^RightHand$/, /^hand_R$/],
+  legL:   [/^LeftUpLeg$/, /^thigh_L$/],
+  legR:   [/^RightUpLeg$/, /^thigh_R$/],
+  shinL:  [/^LeftLeg$/, /^shin_L$/],
+  shinR:  [/^RightLeg$/, /^shin_R$/],
+  footL:  [/^LeftFoot$/, /^foot_L$/],
+  footR:  [/^RightFoot$/, /^foot_R$/]
+};
+
+// Resting posture: each champion stands differently before anything happens.
+const STANCE = {
+  giant:     { spineB: [.05, 0, 0], armL: [-.12, 0, -.22], armR: [-.12, 0, .22], head: [.02, 0, 0] },
+  warrior:   { spineB: [.02, .06, 0], armL: [-.22, 0, -.30], armR: [-.10, 0, .16], head: [0, .05, 0] },
+  zombie:    { spineB: [.13, 0, 0], spineC: [.10, 0, .05], head: [.09, .04, 0], armL: [-.48, 0, -.14], armR: [-.42, 0, .14] },
+  wizard:    { spineB: [-.02, 0, 0], armL: [-.16, 0, -.30], armR: [-.20, 0, .18], head: [-.02, 0, 0] },
+  soldier:   { spineB: [.03, -.05, 0], armL: [-.16, 0, -.14], armR: [-.28, 0, .10], foreR: [-.55, 0, 0], head: [0, -.04, 0] },
+  superhero: { spineB: [-.04, 0, 0], armL: [-.10, 0, -.30], armR: [-.10, 0, .30], head: [-.03, 0, 0] }
+};
+
+// Shared knockdown shape; per-champion parameters keep the sprawl different.
+function makeFall(c) {
+  const sp = c.spread == null ? 1.2 : c.spread;
+  const head = c.head == null ? .24 : c.head;
+  const legL = c.legL == null ? -.34 : c.legL;
+  const legR = c.legR == null ? -.22 : c.legR;
+  const knee = c.knee == null ? .45 : c.knee;
+  return { dur: 1.15, keys: [
+    { t: 0, p: { armL: [-.9, 0, -sp * .7], armR: [-.9, 0, sp * .7], spineB: [-.22, 0, 0], head: [-.28, 0, 0] } },
+    { t: .5, p: { armL: [-1.9 - sp * .2, 0, -sp], armR: [-1.9 - sp * .2, 0, sp], foreL: [-.4, 0, 0], foreR: [-.3, 0, 0], spineB: [.16, 0, 0], head: [head, 0, 0], legL: [legL, 0, 0], legR: [legR, 0, 0], shinL: [knee, 0, 0], shinR: [knee * .7, 0, 0] } },
+    { t: 1, p: { armL: [-2.0 - sp * .15, 0, -sp * 1.05], armR: [-2.0 - sp * .15, 0, sp * 1.05], foreL: [-.35, 0, 0], foreR: [-.25, 0, 0], spineB: [.1, 0, 0], head: [head * 1.1, 0, 0], legL: [legL * .9, 0, 0], legR: [legR * .9, 0, 0], shinL: [knee * .9, 0, 0], shinR: [knee * .65, 0, 0] } }
+  ] };
+}
+
+// Shared recoil shape (arm spread and torso arch are per champion).
+function makeHurt(c) {
+  const sp = c.spread == null ? 1.0 : c.spread;
+  const arch = c.arch == null ? -.28 : c.arch;
+  const head = c.head == null ? -.3 : c.head;
+  const twist = c.twist == null ? .08 : c.twist;
+  return { dur: .8, keys: [
+    { t: 0, p: { armL: [-1.1, 0, -sp], armR: [-1.1, 0, sp], foreL: [-.5, 0, 0], foreR: [-.5, 0, 0], spineB: [arch, 0, twist], spineC: [arch * .6, 0, twist * .5], head: [head, 0, 0], legL: [-.16, 0, 0], legR: [.12, 0, 0], shinL: [.28, 0, 0] } },
+    { t: .34, p: { armL: [-.75, 0, -sp * .8], armR: [-.75, 0, sp * .8], foreL: [-.45, 0, 0], foreR: [-.45, 0, 0], spineB: [arch * .55, 0, twist * .6], head: [head * .6, 0, 0], legL: [-.08, 0, 0], legR: [.05, 0, 0], shinL: [.14, 0, 0] } },
+    { t: 1, p: { armL: [-.4, 0, -sp * .35], armR: [-.4, 0, sp * .35], spineB: [.06, 0, 0], head: [.05, 0, 0] } }
+  ] };
+}
+
+// Shared airborne, recovery and stride shapes. Every champion feeds its own
+// amplitudes in, so the leap, the push off the floor and the victory run all
+// stay recognisable per fighter.
+function makeJump(c) {
+  const arm = c.arm == null ? 1 : c.arm;
+  const stride = c.stride == null ? .55 : c.stride;
+  return { dur: .68, keys: [
+    { t: 0, p: { legL: [-.3, 0, 0], legR: [-.3, 0, 0], shinL: [.5, 0, 0], shinR: [.5, 0, 0], spineB: [.16, 0, 0], armL: [-.25, 0, -.22], armR: [-.25, 0, .22] } },
+    { t: .3, p: { legL: [stride * .5, 0, 0], legR: [-stride, 0, 0], shinL: [.85, 0, 0], shinR: [.2, 0, 0], spineB: [-.1, 0, 0], armL: [-1.35 * arm, 0, -.5], armR: [-1.35 * arm, 0, .5], foreL: [-.3, 0, 0], foreR: [-.3, 0, 0], head: [-.12, 0, 0] } },
+    { t: .66, p: { legL: [-stride * .4, 0, 0], legR: [.18, 0, 0], shinL: [.3, 0, 0], shinR: [.62, 0, 0], spineB: [.1, 0, 0], armL: [-.5, 0, -.4], armR: [-.5, 0, .4] } },
+    { t: 1, p: { legL: [-.1, 0, 0], legR: [-.1, 0, 0], shinL: [.18, 0, 0], shinR: [.18, 0, 0], armL: [-.2, 0, -.2], armR: [-.2, 0, .2] } }
+  ] };
+}
+
+function makeGetup(c) {
+  const brace = c.brace == null ? .6 : c.brace;
+  return { dur: .86, keys: [
+    { t: 0, p: { spineB: [.4, 0, 0], spineC: [.2, 0, 0], head: [.28, 0, 0], legL: [-.68, 0, 0], legR: [-.18, 0, 0], shinL: [.95, 0, 0], shinR: [.5, 0, 0], armL: [-1.5, 0, -.35], armR: [-1.4, 0, .3], foreL: [-.4, 0, 0], foreR: [-.35, 0, 0] } },
+    { t: .42, p: { spineB: [.28, 0, 0], spineC: [.12, 0, 0], head: [.15, 0, 0], legL: [-.48 * brace, 0, 0], legR: [-.1, 0, 0], shinL: [.75 * brace, 0, 0], shinR: [.28, 0, 0], armL: [-.85, 0, -.5], armR: [-.8, 0, .45] } },
+    { t: .74, p: { spineB: [.1, 0, 0], legL: [-.16, 0, 0], legR: [-.05, 0, 0], shinL: [.28, 0, 0], shinR: [.1, 0, 0], armL: [-.3, 0, -.3], armR: [-.3, 0, .3] } },
+    { t: 1, p: { spineB: [0, 0, 0], legL: [0, 0, 0], legR: [0, 0, 0], shinL: [0, 0, 0], shinR: [0, 0, 0], armL: [0, 0, 0], armR: [0, 0, 0] } }
+  ] };
+}
+
+function makeRun(c) {
+  const s = c.stride == null ? .9 : c.stride;
+  const lean = c.lean == null ? .16 : c.lean;
+  const stride = (lead) => ({
+    legL: [-lead * s, 0, 0], legR: [lead * s * .8, 0, 0],
+    shinL: [lead > 0 ? s * .5 : s * .12, 0, 0], shinR: [lead > 0 ? s * .12 : s * .5, 0, 0],
+    armL: [lead * .62, 0, -.12], armR: [-lead * .62, 0, .12],
+    foreL: [-.55, 0, 0], foreR: [-.55, 0, 0], spineB: [lean, 0, 0], spineC: [lean * .4, 0, 0]
+  });
+  return { dur: .58, loop: true, keys: [
+    { t: 0, p: stride(1) },
+    { t: .5, p: stride(-1) },
+    { t: 1, p: stride(1) }
+  ] };
+}
+
+// Per-champion choreography. Keys are normalised time with bone offsets in
+// radians around model-space axes: X pitch (negative swings a limb forward),
+// Y yaw (twist), Z roll (negative lifts an arm out to the side).
+const MOVES = {
+  giant: {
+    charge: { dur: 1.8, keys: [
+      { t: 0, p: {} },
+      { t: .55, p: { armL: [-.55, 0, -.35], armR: [-.55, 0, .35], foreL: [-.6, 0, 0], foreR: [-.6, 0, 0], spineB: [-.12, 0, 0], head: [-.12, 0, 0] } },
+      { t: 1, p: { armL: [-1.05, 0, -.5], armR: [-1.05, 0, .5], foreL: [-.95, 0, 0], foreR: [-.95, 0, 0], spineB: [-.24, 0, 0], spineC: [-.14, .1, 0], head: [-.22, 0, 0] } }
+    ] },
+    attack: { dur: .92, keys: [
+      { t: 0, p: { armL: [-1.05, 0, -.5], armR: [-1.05, 0, .5], foreL: [-.95, 0, 0], foreR: [-.95, 0, 0], spineB: [-.24, 0, 0], head: [-.22, 0, 0] } },
+      { t: .28, p: { armL: [-2.25, 0, -.34], armR: [-2.25, 0, .34], foreL: [-.3, 0, 0], foreR: [-.3, 0, 0], spineB: [-.42, 0, 0], spineC: [-.26, 0, 0], head: [-.38, 0, 0], legL: [-.18, 0, 0], legR: [.14, 0, 0], shinL: [.3, 0, 0] } },
+      { t: .56, p: { armL: [.42, 0, -.2], armR: [.42, 0, .2], foreL: [-.12, 0, 0], foreR: [-.12, 0, 0], spineB: [.5, 0, 0], spineC: [.32, 0, 0], head: [.3, 0, 0], legL: [-.3, 0, 0], legR: [.2, 0, 0], shinL: [.45, 0, 0] } },
+      { t: 1, p: { armL: [-.3, 0, -.3], armR: [-.3, 0, .3], foreL: [-.55, 0, 0], foreR: [-.55, 0, 0], spineB: [.12, 0, 0], head: [.06, 0, 0] } }
+    ] },
+    hurt: makeHurt({ spread: 1.15, arch: -.32, head: -.36, twist: .12 }),
+    fall: makeFall({ spread: 1.25, head: .22, legL: -.36, legR: -.24, knee: .5 }),
+    win: { dur: 2.1, keys: [
+      { t: 0, p: { armL: [-1.6, 0, -.9], armR: [-1.6, 0, .9], spineB: [-.22, 0, 0], head: [-.28, 0, 0] } },
+      { t: .3, p: { armL: [-2.65, 0, -.55], armR: [-2.65, 0, .55], foreL: [-.28, 0, 0], foreR: [-.28, 0, 0], spineB: [-.42, 0, 0], spineC: [-.28, 0, 0], head: [-.46, 0, 0], legL: [-.1, 0, 0], legR: [.08, 0, 0] } },
+      { t: .62, p: { armL: [-2.35, 0, -.75], armR: [-2.35, 0, .75], foreL: [-.5, 0, 0], foreR: [-.5, 0, 0], spineB: [-.28, 0, 0], spineC: [-.18, 0, 0], head: [-.34, 0, 0] } },
+      { t: 1, p: { armL: [-2.65, 0, -.55], armR: [-2.65, 0, .55], foreL: [-.28, 0, 0], foreR: [-.28, 0, 0], spineB: [-.42, 0, 0], spineC: [-.28, 0, 0], head: [-.46, 0, 0], legL: [-.1, 0, 0], legR: [.08, 0, 0] } }
+    ] }
+  },
+  warrior: {
+    charge: { dur: 1.8, keys: [
+      { t: 0, p: {} },
+      { t: 1, p: { armR: [-1.5, .2, .35], foreR: [-.7, 0, 0], armL: [-.4, 0, -.5], spineC: [0, .34, 0], spineB: [-.06, .18, 0], head: [0, .2, 0] } }
+    ] },
+    attack: { dur: .88, keys: [
+      { t: 0, p: { armR: [-1.5, .2, .35], foreR: [-.7, 0, 0], armL: [-.4, 0, -.5], spineC: [0, .34, 0] } },
+      { t: .3, p: { armR: [-2.35, .3, .75], foreR: [-.45, 0, 0], armL: [-.55, 0, -.65], spineC: [-.12, .56, 0], spineB: [-.08, .22, 0], head: [-.12, .24, 0], legR: [.16, 0, 0] } },
+      { t: .58, p: { armR: [-.32, -.2, -.5], foreR: [-.15, 0, 0], armL: [-.2, 0, -.95], spineC: [.24, -.55, 0], spineB: [.16, -.26, 0], head: [.18, -.26, 0], legR: [-.2, 0, 0], legL: [.16, 0, 0] } },
+      { t: 1, p: { armR: [-.45, .1, .15], foreR: [-.6, 0, 0], armL: [-.24, 0, -.34], spineC: [.05, .08, 0] } }
+    ] },
+    hurt: makeHurt({ spread: .85, arch: -.18, head: -.22, twist: -.16 }),
+    fall: makeFall({ spread: .95, head: .3, legL: -.28, legR: -.34, knee: .38 }),
+    win: { dur: 2.0, keys: [
+      { t: 0, p: { armR: [-.9, 0, .3], foreR: [-.9, 0, 0], armL: [-.3, 0, -.4] } },
+      { t: .26, p: { armR: [-1.5, .35, .55], foreR: [-1.7, 0, 0], spineC: [.06, .2, 0], head: [.04, .16, 0] } },
+      { t: .52, p: { armR: [-2.9, 0, .15], foreR: [-.2, 0, 0], armL: [-.35, 0, -.75], spineB: [-.18, 0, 0], spineC: [-.1, 0, 0], head: [-.3, 0, 0] } },
+      { t: 1, p: { armR: [-2.75, 0, .1], foreR: [-.3, 0, 0], armL: [-.4, 0, -.85], spineB: [-.14, 0, 0], spineC: [-.06, 0, 0], head: [-.26, 0, 0] } }
+    ] }
+  },
+  zombie: {
+    charge: { dur: 1.8, keys: [
+      { t: 0, p: {} },
+      { t: 1, p: { armL: [-.9, 0, -.25], armR: [-.85, 0, .2], foreL: [-.6, 0, 0], foreR: [-.55, 0, 0], spineB: [.3, 0, 0], spineC: [.24, .1, 0], head: [.24, 0, 0], legL: [-.14, 0, 0], shinL: [.24, 0, 0] } }
+    ] },
+    attack: { dur: .96, keys: [
+      { t: 0, p: { armL: [-.95, 0, -.3], armR: [-.9, 0, .25], foreL: [-.65, 0, 0], foreR: [-.6, 0, 0], spineB: [.32, 0, 0], spineC: [.26, .1, 0], head: [.26, 0, 0] } },
+      { t: .26, p: { armL: [-.35, 0, -.6], armR: [-.3, 0, .55], foreL: [-1.0, 0, 0], foreR: [-.95, 0, 0], spineB: [.5, 0, 0], spineC: [.34, .16, 0], head: [.36, .1, 0], legL: [-.24, 0, 0], shinL: [.4, 0, 0] } },
+      { t: .54, p: { armL: [-1.65, 0, -.15], armR: [-1.55, 0, .1], foreL: [-.25, 0, 0], foreR: [-.2, 0, 0], spineB: [.16, 0, 0], spineC: [.06, -.12, 0], head: [-.32, -.06, 0], legL: [-.1, 0, 0], shinL: [.18, 0, 0] } },
+      { t: 1, p: { armL: [-.7, 0, -.2], armR: [-.65, 0, .18], foreL: [-.5, 0, 0], foreR: [-.45, 0, 0], spineB: [.2, 0, 0], head: [.12, 0, 0] } }
+    ] },
+    hurt: makeHurt({ spread: .55, arch: -.14, head: .42, twist: .2 }),
+    fall: makeFall({ spread: .8, head: .38, legL: -.16, legR: -.3, knee: .3 }),
+    win: { dur: 2.3, keys: [
+      { t: 0, p: { armL: [-.9, 0, -.3], armR: [-.8, 0, .25], spineB: [.24, 0, 0], head: [.2, 0, 0] } },
+      { t: .3, p: { armL: [-2.5, 0, -.7], armR: [-2.2, 0, .95], foreL: [-.5, 0, 0], foreR: [-.7, 0, 0], spineB: [-.18, .14, .06], spineC: [-.12, .1, 0], head: [-.3, .2, .12], legL: [-.12, 0, 0] } },
+      { t: .6, p: { armL: [-2.25, 0, -.95], armR: [-2.45, 0, .7], foreL: [-.7, 0, 0], foreR: [-.45, 0, 0], spineB: [-.1, -.16, -.05], head: [-.24, -.2, -.1], legR: [-.1, 0, 0] } },
+      { t: 1, p: { armL: [-2.5, 0, -.7], armR: [-2.2, 0, .95], foreL: [-.5, 0, 0], foreR: [-.7, 0, 0], spineB: [-.18, .14, .06], spineC: [-.12, .1, 0], head: [-.3, .2, .12], legL: [-.12, 0, 0] } }
+    ] }
+  },
+  wizard: {
+    charge: { dur: 1.8, keys: [
+      { t: 0, p: {} },
+      { t: 1, p: { armR: [-1.05, .15, .3], foreR: [-1.15, 0, 0], armL: [-.45, 0, -.7], spineC: [0, -.3, 0], spineB: [-.05, -.16, 0], head: [-.08, -.2, 0] } }
+    ] },
+    attack: { dur: .95, keys: [
+      { t: 0, p: { armR: [-1.05, .15, .3], foreR: [-1.15, 0, 0], armL: [-.45, 0, -.7], spineC: [0, -.3, 0] } },
+      { t: .28, p: { armR: [-.5, .5, .5], foreR: [-1.7, 0, 0], armL: [-.9, 0, -.95], spineC: [.1, -.5, 0], spineB: [.06, -.24, 0], head: [.08, -.3, 0], legR: [.14, 0, 0] } },
+      { t: .56, p: { armR: [-1.75, -.3, -.2], foreR: [-.15, 0, 0], armL: [-1.75, 0, -.85], spineC: [-.08, .42, 0], spineB: [-.1, .2, 0], head: [-.2, .28, 0], legR: [-.18, 0, 0], legL: [.1, 0, 0] } },
+      { t: 1, p: { armR: [-.6, 0, .18], foreR: [-.8, 0, 0], armL: [-.35, 0, -.35], spineC: [0, .1, 0] } }
+    ] },
+    hurt: makeHurt({ spread: .6, arch: .2, head: .28, twist: -.14 }),
+    fall: makeFall({ spread: .9, head: .3, legL: -.4, legR: -.16, knee: .55 }),
+    win: { dur: 2.4, keys: [
+      { t: 0, p: { armR: [-1.0, 0, .2], foreR: [-.9, 0, 0], armL: [-.4, 0, -.4] } },
+      { t: .25, p: { armL: [-2.9, 0, -.35], foreL: [-.2, 0, 0], armR: [-.35, 0, .85], foreR: [-1.3, 0, 0], spineB: [-.2, 0, 0], spineC: [-.14, .12, 0], head: [-.34, .1, 0] } },
+      { t: .58, p: { armL: [-2.6, 0, -.6], armR: [-.3, 0, 1.0], foreR: [-1.45, 0, 0], spineB: [-.12, 0, 0], head: [-.2, -.12, 0] } },
+      { t: 1, p: { armL: [-2.9, 0, -.35], foreL: [-.2, 0, 0], armR: [-.35, 0, .85], foreR: [-1.3, 0, 0], spineB: [-.2, 0, 0], spineC: [-.14, .12, 0], head: [-.34, .1, 0] } }
+    ] }
+  },
+  soldier: {
+    charge: { dur: 1.8, keys: [
+      { t: 0, p: {} },
+      { t: 1, p: { armR: [-.72, .1, .12], foreR: [-.55, 0, 0], armL: [-.62, 0, .45], foreL: [-.9, 0, 0], spineC: [0, -.18, 0], head: [-.08, -.08, 0], legL: [-.1, 0, 0], shinL: [.2, 0, 0] } }
+    ] },
+    attack: { dur: .8, keys: [
+      { t: 0, p: { armR: [-.72, .1, .12], foreR: [-.55, 0, 0], armL: [-.62, 0, .45], foreL: [-.9, 0, 0], spineC: [0, -.18, 0] } },
+      { t: .2, p: { armR: [-.8, .06, .08], foreR: [-.45, 0, 0], armL: [-.7, 0, .38], foreL: [-.8, 0, 0], spineC: [-.05, -.2, 0], head: [-.06, -.06, 0] } },
+      { t: .3, p: { armR: [-.98, .04, .02], foreR: [-.72, 0, 0], armL: [-.82, 0, .32], foreL: [-.95, 0, 0], spineC: [-.14, -.22, 0], spineB: [-.08, -.1, 0], head: [.06, -.06, 0], legR: [.12, 0, 0] } },
+      { t: .48, p: { armR: [-.76, .08, .1], foreR: [-.5, 0, 0], armL: [-.66, 0, .42], foreL: [-.86, 0, 0], spineC: [-.02, -.18, 0], head: [-.02, -.06, 0] } },
+      { t: 1, p: { armR: [-.6, .1, .14], foreR: [-.42, 0, 0], armL: [-.55, 0, .3], foreL: [-.9, 0, 0], spineC: [0, -.1, 0] } }
+    ] },
+    hurt: makeHurt({ spread: .7, arch: .22, head: .24, twist: .1 }),
+    fall: makeFall({ spread: 1.0, head: .26, legL: -.22, legR: -.36, knee: .42 }),
+    win: { dur: 1.9, keys: [
+      { t: 0, p: { armR: [-.7, 0, .14], foreR: [-.5, 0, 0], armL: [-.5, 0, -.4] } },
+      { t: .24, p: { armR: [-1.65, .1, .05], foreR: [-.25, 0, 0], armL: [-.55, 0, -.45], spineB: [-.2, 0, 0], spineC: [-.12, 0, 0], head: [-.34, 0, 0], legL: [-.12, 0, 0], shinL: [.22, 0, 0] } },
+      { t: .5, p: { armR: [-1.3, .1, .18], foreR: [-.45, 0, 0], spineB: [-.06, 0, 0], head: [-.14, 0, 0], legR: [-.1, 0, 0], shinR: [.2, 0, 0] } },
+      { t: 1, p: { armR: [-1.65, .1, .05], foreR: [-.25, 0, 0], armL: [-.55, 0, -.45], spineB: [-.2, 0, 0], spineC: [-.12, 0, 0], head: [-.34, 0, 0], legL: [-.12, 0, 0], shinL: [.22, 0, 0] } }
+    ] }
+  },
+  superhero: {
+    charge: { dur: 1.8, keys: [
+      { t: 0, p: {} },
+      { t: 1, p: { armR: [.55, 0, .3], foreR: [-1.4, 0, 0], armL: [-.55, 0, -.55], spineC: [0, .42, 0], spineB: [-.12, .2, 0], head: [-.14, .24, 0], legL: [-.3, 0, 0], shinL: [.36, 0, 0] } }
+    ] },
+    attack: { dur: .86, keys: [
+      { t: 0, p: { armR: [.55, 0, .3], foreR: [-1.4, 0, 0], armL: [-.55, 0, -.55], spineC: [0, .42, 0], legL: [-.3, 0, 0], shinL: [.36, 0, 0] } },
+      { t: .26, p: { armR: [.9, -.2, .5], foreR: [-1.75, 0, 0], armL: [-.85, 0, -.9], spineC: [-.1, .6, 0], spineB: [-.16, .3, 0], head: [-.2, .34, 0], legL: [-.55, 0, 0], shinL: [.6, 0, 0] } },
+      { t: .54, p: { armR: [-1.85, -.25, -.05], foreR: [-.1, 0, 0], armL: [.35, 0, -.7], spineC: [.12, -.5, 0], spineB: [.1, -.28, 0], head: [.1, -.3, 0], legL: [-1.15, 0, 0], shinL: [1.25, 0, 0], legR: [.2, 0, 0] } },
+      { t: 1, p: { armR: [-.55, 0, -.1], foreR: [-.6, 0, 0], armL: [-.2, 0, -.35], spineC: [.02, -.1, 0], legL: [-.2, 0, 0], shinL: [.2, 0, 0] } }
+    ] },
+    hurt: makeHurt({ spread: 1.35, arch: -.42, head: -.14, twist: -.1 }),
+    fall: makeFall({ spread: 1.4, head: .18, legL: -.46, legR: -.12, knee: .62 }),
+    win: { dur: 2.2, keys: [
+      { t: 0, p: { armL: [-.6, 0, -.3], armR: [-.6, 0, .2] } },
+      { t: .28, p: { armR: [-1.95, .18, .12], foreR: [-.25, 0, 0], armL: [-.35, 0, -.95], foreL: [-.35, 0, 0], spineB: [-.24, -.1, 0], spineC: [-.14, -.14, 0], head: [-.38, -.12, 0], legL: [-.16, 0, 0], legR: [.12, 0, 0] } },
+      { t: .58, p: { armR: [-1.6, .18, .28], armL: [-.45, 0, -1.15], spineB: [-.1, -.16, 0], head: [-.2, -.18, 0] } },
+      { t: 1, p: { armR: [-1.95, .18, .12], foreR: [-.25, 0, 0], armL: [-.35, 0, -.95], foreL: [-.35, 0, 0], spineB: [-.24, -.1, 0], spineC: [-.14, -.14, 0], head: [-.38, -.12, 0], legL: [-.16, 0, 0], legR: [.12, 0, 0] } }
+    ] }
+  }
+};
+
+// Every champion's leap, floor recovery and run get their own amplitudes too.
+const AUX = {
+  giant:     { jump: { arm: 1.05, stride: .46 }, getup: { brace: .45 }, run: { stride: .95, lean: .2 } },
+  warrior:   { jump: { arm: .95, stride: .55 }, getup: { brace: .7 }, run: { stride: .85, lean: .12 } },
+  zombie:    { jump: { arm: .68, stride: .3 }, getup: { brace: .5 }, run: { stride: .6, lean: .32 } },
+  wizard:    { jump: { arm: .85, stride: .44 }, getup: { brace: .75 }, run: { stride: .7, lean: .08 } },
+  soldier:   { jump: { arm: .9, stride: .6 }, getup: { brace: .65 }, run: { stride: .95, lean: .18 } },
+  superhero: { jump: { arm: 1.2, stride: .7 }, getup: { brace: .55 }, run: { stride: 1.05, lean: .1 } }
+};
+Object.keys(MOVES).forEach((id) => {
+  const aux = AUX[id] || AUX.giant;
+  MOVES[id].jump = makeJump(aux.jump);
+  MOVES[id].getup = makeGetup(aux.getup);
+  MOVES[id].run = makeRun(aux.run);
+});
+
+// Which bone choreography an animation pose maps to.
+const POSE_MOVE = {
+  charge: 'charge', thrust: 'attack', strike: 'attack',
+  hurt: 'hurt', recoil: 'hurt', fall: 'fall', down: 'fall',
+  getup: 'getup', jump: 'jump', run: 'run', celebrate: 'win'
+};
+
+// Poses where a real baked clip is already working the torso and legs: the rig
+// only adds flavour there, otherwise the two combine into a folded-over crouch.
+const CLIP_BLEND_POSES = new Set(['thrust', 'strike', 'hurt', 'recoil', 'fall', 'jump', 'down']);
+
+const AXIS_VECTORS = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
+const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, foreR: .6, neck: .6, pelvis: .35 };
+
+(() => {
+  const host = document.getElementById('warrior3DLayer');
+  if (!host) return;
+
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'high-performance', stencil: false, depth: true });
+  } catch (e) {
+    console.error('3D renderer unavailable', e);
+    return;
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.08;
+  host.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(44, 1, .1, 100);
+  camera.position.set(0, 3.2, 12.6);
+  camera.lookAt(0, 3.72, 0);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x59677d, 1.9));
+  const key = new THREE.DirectionalLight(0xffffff, 2.25); key.position.set(-3, 7, 6); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xdceaff, 1.05); fill.position.set(4, 3, 5); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xb9dcff, 1.0); rim.position.set(4, 4, -4); scene.add(rim);
+
+  const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+
+  const FACE_TURN = 1.12;
+  const FIGHTER_Z = 1.2;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ease = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+
+  // ---- Model cache: each champion is downloaded once, then cloned per use ----
+  const assets = new Map();
+  function loadCharacter(id) {
+    const spec = CHAR_FILES[id] || CHAR_FILES.giant;
+    if (!assets.has(id)) {
+      assets.set(id, loader.loadAsync(spec.url).then((gltf) => {
+        const model = gltf.scene;
+        const maxAniso = renderer.capabilities.getMaxAnisotropy();
+        model.traverse((o) => {
+          if (!o.isMesh) return;
+          // Skinned bounds are computed from the bind pose, so a big attack pose
+          // can cull a limb-readable chunk of the champion. Never cull a skinned
+          // mesh; there are only six fighters on screen.
+          o.frustumCulled = !o.isSkinnedMesh;
+          if (o.material) {
+            o.material.side = THREE.FrontSide;
+            ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'].forEach((k) => {
+              const t = o.material[k];
+              if (t && t.isTexture) { t.anisotropy = maxAniso; t.needsUpdate = true; }
+            });
+          }
+        });
+        // Skinned meshes need resolved world matrices before measuring, otherwise
+        // the bind-pose bounds are tiny and the fighter gets blown up to giant size.
+        model.updateMatrixWorld(true);
+        const bounds = new THREE.Box3().setFromObject(model);
+        const size = bounds.getSize(new THREE.Vector3());
+        return {
+          scene: model,
+          clips: gltf.animations || [],
+          rawHeight: Math.max(size.y, .001),
+          targetHeight: spec.height
+        };
+      }).catch((e) => {
+        console.error('Character GLB load failed:', id, e);
+        assets.delete(id);
+        throw e;
+      }));
+    }
+    return assets.get(id);
+  }
+
+  function instantiate(asset) {
+    const model = cloneSkeleton(asset.scene);
+    model.scale.setScalar(asset.targetHeight / asset.rawHeight);
+    model.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(model);
+    model.position.y -= bounds.min.y;
+    model.updateMatrixWorld(true);
+    return model;
+  }
+
+  // ---- Animation helpers -------------------------------------------------
+  function chooseClip(clips, patterns) {
+    return clips.find((c) => patterns.some((p) => p.test(c.name))) || null;
+  }
+  function setPose(f, clip, freeze) {
+    // The four champion models only ship locomotion clips, and their walk poses
+    // are strongly stylised (hunched shamble, strutting wizard). For them a
+    // frozen clip reads as a broken stance, so they stand in their own rest pose
+    // and every limb is animated by the rig layer instead.
+    if (f.restOnly && freeze != null) {
+      if (f.action) { f.action.stop(); f.action = null; }
+      f.currentClip = null; f.poseKey = 'rest';
+      return;
+    }
+    if (!clip) return;
+    const key = `${clip.name}|${freeze == null ? 'live' : freeze}`;
+    if (f.poseKey === key) return;
+    const next = f.mixer.clipAction(clip);
+    next.stop(); next.reset(); next.enabled = true; next.setEffectiveWeight(1);
+    next.setLoop(THREE.LoopRepeat, Infinity);
+    if (freeze == null) {
+      next.paused = false; next.setEffectiveTimeScale(1);
+    } else {
+      // A frozen mid-stride frame reads as a stance; root motion carries the action.
+      next.paused = true; next.setEffectiveTimeScale(0); next.time = clip.duration * freeze;
+    }
+    next.play();
+    if (f.action && f.action !== next) f.action.stop();
+    f.action = next;
+    f.currentClip = clip;
+    f.poseKey = key;
+  }
+  function setAction(f, clip, freezeFallback) {
+    if (clip) {
+      const key = `${clip.name}|once`;
+      if (f.poseKey === key) return;
+      const next = f.mixer.clipAction(clip);
+      next.stop(); next.reset(); next.enabled = true; next.setEffectiveWeight(1);
+      next.setLoop(THREE.LoopOnce, 1); next.clampWhenFinished = true;
+      next.paused = false; next.setEffectiveTimeScale(1);
+      next.play();
+      if (f.action && f.action !== next) f.action.stop();
+      f.action = next; f.currentClip = clip; f.poseKey = key;
+    } else {
+      setPose(f, f.walk || f.run, freezeFallback);
+    }
+  }
+
+  // ---- Skeletal acting ---------------------------------------------------
+  // Each champion's skeleton is driven in model space so the limbs really move:
+  // a negative pitch swings an arm or leg forward, a negative roll lifts an arm
+  // out to the side, and yaw twists the torso. Offsets are layered on top of the
+  // mixer pose every frame, then eased, so motion stays smooth and never snaps.
+  function buildRig(f) {
+    f.model.updateMatrixWorld(true);
+    f.rig = {};
+    f.rigInv = new Map();
+    f.restQuat = new Map();
+    f.boneCur = new Map();
+    f.pose = '';
+    f.moveT = 0;
+    Object.keys(RIG_SLOTS).forEach((slot) => {
+      const bone = findBone(f.model, RIG_SLOTS[slot]);
+      if (!bone) return;
+      f.rig[slot] = bone;
+      f.restQuat.set(slot, bone.quaternion.clone());
+      f.rigInv.set(slot, bone.getWorldQuaternion(new THREE.Quaternion()).invert());
+    });
+  }
+
+  function sampleMove(move, u) {
+    const keys = move.keys;
+    let a = keys[0], b = keys[keys.length - 1];
+    for (let i = 0; i < keys.length - 1; i++) {
+      if (u >= keys[i].t && u <= keys[i + 1].t) { a = keys[i]; b = keys[i + 1]; break; }
+    }
+    const span = Math.max(1e-4, b.t - a.t);
+    const k = ease((u - a.t) / span);
+    const pa = a.p || {}, pb = b.p || {};
+    const out = {};
+    const names = new Set([...Object.keys(pa), ...Object.keys(pb)]);
+    names.forEach((name) => {
+      const A = pa[name] || [0, 0, 0], B = pb[name] || [0, 0, 0];
+      out[name] = [A[0] + (B[0] - A[0]) * k, A[1] + (B[1] - A[1]) * k, A[2] + (B[2] - A[2]) * k];
+    });
+    return out;
+  }
+
+  const addOffsets = (into, src) => {
+    Object.keys(src || {}).forEach((name) => {
+      const v = src[name];
+      const cur = into[name] || (into[name] = [0, 0, 0]);
+      cur[0] += v[0] || 0; cur[1] += v[1] || 0; cur[2] += v[2] || 0;
+    });
+  };
+
+  const tmpAxis = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion();
+  function applyRig(f, pose, elapsed, dt) {
+    if (!f.rig || !f.rig.armR) return;
+    const lib = MOVES[f.charId] || MOVES.giant;
+    const targets = {};
+    addOffsets(targets, STANCE[f.charId] || STANCE.giant);
+
+    // Constant breathing keeps every stance alive between moves.
+    const breath = Math.sin(elapsed * 2.05 + f.seed);
+    const sway = Math.sin(elapsed * 1.15 + f.seed * 1.7);
+    addOffsets(targets, {
+      spineB: [breath * .014, sway * .012, sway * .01],
+      spineC: [breath * .008, sway * .016, 0],
+      head: [-breath * .012, sway * .03, 0],
+      armL: [breath * .012, 0, -Math.abs(breath) * .012],
+      armR: [-breath * .012, 0, Math.abs(breath) * .012]
+    });
+
+    const kind = POSE_MOVE[pose];
+    // The baked locomotion already carries the four new champions' baked Run;
+    // the ogre and knight have a real Run clip too, so the stride layer is only
+    // used by the posed champions.
+    if (kind && lib[kind] && !(kind === 'run' && !f.restOnly)) {
+      const move = lib[kind];
+      const raw = f.moveT / move.dur;
+      const u = (kind === 'win' || kind === 'run') ? raw % 1 : clamp(raw, 0, 1);
+      const moveOffsets = sampleMove(move, u);
+      // Half-strength on the champions whose clip is already acting the pose.
+      const blend = !f.restOnly && CLIP_BLEND_POSES.has(pose) ? .55 : 1;
+      if (blend !== 1) {
+        Object.keys(moveOffsets).forEach((name) => {
+          const v = moveOffsets[name];
+          v[0] *= blend; v[1] *= blend; v[2] *= blend;
+        });
+      }
+      addOffsets(targets, moveOffsets);
+    }
+
+    // Stacked spine bones compound quickly: scale them so a full bend reads as a
+    // lean instead of folding the champion over.
+    Object.keys(RIG_GAIN).forEach((slot) => {
+      const t = targets[slot];
+      if (!t) return;
+      const g = RIG_GAIN[slot];
+      t[0] *= g; t[1] *= g; t[2] *= g;
+    });
+
+    const rate = kind ? 19 : 6;
+    const k = 1 - Math.exp(-dt * rate);
+    Object.keys(f.rig).forEach((slot) => {
+      const bone = f.rig[slot];
+      // Without an active clip nothing resets the skeleton, so restore the bind
+      // rotation before layering the acting offsets on top of it.
+      if (f.restOnly && !f.action) bone.quaternion.copy(f.restQuat.get(slot));
+      let cur = f.boneCur.get(slot);
+      if (!cur) { cur = new THREE.Vector3(); f.boneCur.set(slot, cur); }
+      const t = targets[slot];
+      cur.x += ((t ? t[0] : 0) - cur.x) * k;
+      cur.y += ((t ? t[1] : 0) - cur.y) * k;
+      cur.z += ((t ? t[2] : 0) - cur.z) * k;
+      if (Math.abs(cur.x) + Math.abs(cur.y) + Math.abs(cur.z) < 1e-5) return;
+      const inv = f.rigInv.get(slot);
+      tmpQ.set(0, 0, 0, 1);
+      for (let axis = 0; axis < 3; axis++) {
+        const angle = axis === 0 ? cur.x : axis === 1 ? cur.y : cur.z;
+        if (!angle) continue;
+        tmpAxis.copy(AXIS_VECTORS[axis]).applyQuaternion(inv).normalize();
+        tmpQ2.setFromAxisAngle(tmpAxis, angle);
+        tmpQ.multiply(tmpQ2);
+      }
+      bone.quaternion.multiply(tmpQ);
+    });
+  }
+
+  // ---- Character props (rifle for the soldier, cape for the superhero) ----
+  function findBone(root, patterns) {
+    let hit = null;
+    root.traverse((o) => {
+      if (hit || !o.isBone) return;
+      if (patterns.some((p) => p.test(o.name))) hit = o;
+    });
+    return hit;
+  }
+  function attachProps(f) {
+    if (f.charId === 'soldier') {
+      // The rifle is parented to the fighter root (world-sized) and then glued
+      // to the right hand every frame, so no bone-space surprises.
+      const hand = findBone(f.model, [/right.*hand/i, /hand.*r\b/i, /hand_r/i]);
+      if (!hand) return;
+      const L = f.bodyH * .40, T = f.bodyH * .026;
+      const rifle = new THREE.Group();
+      const gunmetal = new THREE.MeshStandardMaterial({ color: 0x1b2430, metalness: .85, roughness: .38 });
+      const steel = new THREE.MeshStandardMaterial({ color: 0x0a1119, metalness: .95, roughness: .28 });
+      const receiver = new THREE.Mesh(new THREE.BoxGeometry(T * 2.2, T * 3.0, L * .46), gunmetal);
+      receiver.position.z = L * .10;
+      rifle.add(receiver);
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(T * .5, T * .5, L * .46, 8), steel);
+      barrel.rotation.x = Math.PI / 2; barrel.position.set(0, T * .2, L * .55);
+      rifle.add(barrel);
+      const mag = new THREE.Mesh(new THREE.BoxGeometry(T * 1.5, T * 4.2, T * 2.2), gunmetal);
+      mag.position.set(0, -T * 3.4, L * .06);
+      mag.rotation.x = .22;
+      rifle.add(mag);
+      const stock = new THREE.Mesh(new THREE.BoxGeometry(T * 1.9, T * 2.6, L * .26), gunmetal);
+      stock.position.set(0, -T * .3, -L * .28);
+      rifle.add(stock);
+      const grip = new THREE.Mesh(new THREE.BoxGeometry(T * 1.4, T * 3.2, T * 1.6), gunmetal);
+      grip.position.set(0, -T * 2.4, -L * .06);
+      rifle.add(grip);
+      rifle.rotation.x = -.12;
+      f.root.add(rifle);
+      f.prop = rifle;
+      f.propBone = hand;
+    }
+
+  }
+
+  // ---- Fighters ----------------------------------------------------------
+  const fighters = [];
+  let spread = 3.35;
+  function applySpread(f) {
+    f.baseX = -f.toward * spread;
+    f.baseRot = f.toward * FACE_TURN;
+    f.root.position.set(f.baseX, 0, FIGHTER_Z);
+    f.root.rotation.set(0, f.baseRot, 0);
+    f.sX = f.baseX; f.sY = 0; f.sRz = 0; f.sRy = f.baseRot;
+  }
+  function makeFighter(index, charId, asset) {
+    const model = instantiate(asset);
+    const root = new THREE.Group();
+    root.add(model);
+    scene.add(root);
+    const clips = asset.clips;
+    const toward = index === 0 ? 1 : -1;
+    const f = {
+      root, model, index, charId, clips,
+      mixer: new THREE.AnimationMixer(model),
+      action: null, currentClip: null, poseKey: '', pose: '',
+      idle: chooseClip(clips, [/^idle$/i]),
+      walk: chooseClip(clips, [/walk/i]),
+      run: chooseClip(clips, [/^run$/i, /run/i]),
+      jump: chooseClip(clips, [/jump/i]),
+      attack: chooseClip(clips, [/^atk0?1$|^attack$/i]),
+      special: chooseClip(clips, [/groundslam|special|slam/i]),
+      kick: chooseClip(clips, [/^kick$/i]),
+      hit: chooseClip(clips, [/^hit$|hurt/i]),
+      death: chooseClip(clips, [/^death$|fall|ground/i]),
+      win: chooseClip(clips, [/^win$|victory/i]),
+      toward, bodyH: asset.targetHeight, rawHeight: asset.rawHeight,
+      baseX: 0, baseRot: toward * FACE_TURN, seed: index * 1.9,
+      restOnly: !chooseClip(clips, [/^idle$/i]),
+      victoryAt: 0, wasVictory: false,
+      sX: 0, sY: 0, sRz: 0, sRy: toward * FACE_TURN
+    };
+    buildRig(f);
+    attachProps(f);
+    applySpread(f);
+    setPose(f, f.idle || f.walk, f.idle ? null : .18);
+    return f;
+  }
+
+  function resize() {
+    const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    const aspect = w / h;
+    camera.fov = aspect < 1 ? 48 : 44;
+    camera.position.set(0, aspect < 1 ? 3.4 : 3.2, aspect < 1 ? 13.6 : 12.6);
+    camera.lookAt(0, 3.72, 0);
+    camera.updateProjectionMatrix();
+    const halfW = Math.tan(camera.fov * Math.PI / 360) * (camera.position.z - FIGHTER_Z) * aspect;
+    const stance = aspect >= 1.6 ? .68 : .6;
+    spread = Math.max(1.2, Math.min(9.5, halfW * stance));
+    fighters.forEach((f) => { if (f) applySpread(f); });
+  }
+
+  // ---- Champion-select previews -----------------------------------------
+  const previewViews = [];
+  function fitPreview(v) {
+    const w = Math.max(1, v.holder.clientWidth), h = Math.max(1, v.holder.clientHeight);
+    if (w === v.w && h === v.h) return;
+    v.w = w; v.h = h;
+    v.pr.setSize(w, h, false);
+    const aspect = w / h, dist = 6.9 * (aspect < 1.4 ? 1.24 : 1) * (v.bodyH / 3.9);
+    v.cam.aspect = aspect;
+    v.cam.position.set(0, v.bodyH * .5, dist);
+    v.cam.lookAt(0, v.bodyH * .48, 0);
+    v.cam.updateProjectionMatrix();
+  }
+  function buildPreviews() {
+    [['p1PreviewCanvas', 0], ['p2PreviewCanvas', 1]].forEach(([canvasId, side]) => {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const holder = canvas.parentElement;
+      if (!holder) return;
+      let pr;
+      try { pr = new THREE.WebGLRenderer({ alpha: true, antialias: true }); } catch (e) { return; }
+      pr.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      pr.outputColorSpace = THREE.SRGBColorSpace;
+      pr.toneMapping = THREE.ACESFilmicToneMapping;
+      pr.toneMappingExposure = 1.08;
+      pr.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none';
+      holder.appendChild(pr.domElement);
+      const sc = new THREE.Scene();
+      sc.add(new THREE.HemisphereLight(0xffffff, 0x59677d, 2.0));
+      const k = new THREE.DirectionalLight(0xffffff, 2.2); k.position.set(-2.5, 5, 4); sc.add(k);
+      const r = new THREE.DirectionalLight(0xbfe0ff, 1.1); r.position.set(3, 3, -3); sc.add(r);
+      const cam = new THREE.PerspectiveCamera(34, 1, .1, 40);
+      previewViews.push({ pr, sc, cam, holder, side, body: null, mixer: null, w: 0, h: 0, bodyH: 4.95, charId: null });
+      canvas.style.display = 'none';
+      window.gshPreview3d = true;
+    });
+  }
+  async function setPreviewCharacter(view, charId) {
+    if (view.charId === charId) return;
+    // Claim the slot immediately so a slower earlier download cannot win the race
+    // and repaint an old champion over the one the player just picked.
+    view.charId = charId;
+    const asset = await loadCharacter(charId);
+    if (view.charId !== charId) return;
+    if (view.body) view.sc.remove(view.body);
+    const model = instantiate(asset);
+    model.rotation.y = view.side === 0 ? .5 : -.5;
+    view.sc.add(model);
+    view.body = model;
+    view.charId = charId;
+    view.bodyH = asset.targetHeight;
+    view.mixer = new THREE.AnimationMixer(model);
+    if (asset.clips.length) {
+      const idle = asset.clips.find((c) => /^idle$/i.test(c.name));
+      const walk = asset.clips.find((c) => /walk/i.test(c.name));
+      if (idle) view.mixer.clipAction(idle).play();
+      else if (walk) {
+        const a = view.mixer.clipAction(walk);
+        a.play(); a.paused = true; a.time = walk.duration * .18;
+      }
+    }
+    fitPreview(view);
+  }
+
+  // ---- Selection sync ----------------------------------------------------
+  function currentIds() {
+    try {
+      if (typeof window.gshGetCharacters === 'function') return window.gshGetCharacters();
+      if (typeof game !== 'undefined') return [game.p1.characterId, game.p2.characterId];
+    } catch (_) { /* fall through */ }
+    return ['giant', 'warrior'];
+  }
+  let fighterToken = 0;
+  async function refreshFighters(ids) {
+    if (fighters[0] && fighters[1] && fighters[0].charId === ids[0] && fighters[1].charId === ids[1]) return;
+    const token = ++fighterToken;
+    let loaded;
+    try { loaded = await Promise.all(ids.map(loadCharacter)); } catch (e) { console.error(e); return; }
+    if (token !== fighterToken) return; // a newer selection already took over
+    fighters.forEach((f) => { if (f) scene.remove(f.root); });
+    fighters[0] = makeFighter(0, ids[0], loaded[0]);
+    fighters[1] = makeFighter(1, ids[1], loaded[1]);
+    resize();
+    window.gsh3dReady = true;
+  }
+  async function refreshAll() {
+    const ids = currentIds();
+    await Promise.all(previewViews.map((v) => setPreviewCharacter(v, ids[v.side]).catch(() => {})));
+    await refreshFighters(currentIds());
+  }
+  // Serialise refresh requests so two quick champion picks cannot interleave.
+  let refreshQueue = Promise.resolve();
+  window.gshRefresh3D = () => {
+    refreshQueue = refreshQueue.then(refreshAll).catch((e) => console.error('3D refresh failed', e));
+  };
+
+  // Small diagnostic hook used while tuning the champion-select cards.
+  window.gshPreviewDebug = () => previewViews.map((v) => ({
+    charId: v.charId, hasBody: !!v.body, w: v.w, h: v.h, bodyH: v.bodyH,
+    frames: v.pr.info.render.frame,
+    rect: v.pr.domElement.isConnected ? [v.pr.domElement.clientWidth, v.pr.domElement.clientHeight] : null
+  }));
+
+  const ro = new ResizeObserver(resize);
+  ro.observe(host);
+  buildPreviews();
+  resize();
+  refreshAll().catch((e) => { console.error('Initial 3D load failed', e); window.gsh3dReady = false; window.gsh3dAnchors = null; });
+
+  // ---- Render loop -------------------------------------------------------
+  const clock = new THREE.Clock();
+  let elapsed = 0;
+  const handLocal = new THREE.Vector3(), handWorld = new THREE.Vector3();
+  const propWorld = new THREE.Vector3(), propQuat = new THREE.Quaternion(), rootQuat = new THREE.Quaternion();
+  const handY = new THREE.Vector3(), barrelAxis = new THREE.Vector3(0, 0, 1);
+  const anchors = { p1: null, p2: null };
+
+  function frame() {
+    requestAnimationFrame(frame);
+    if (document.hidden) { clock.getDelta(); return; }
+    const dt = Math.min(clock.getDelta(), .033);
+    elapsed += dt;
+    const state = window.gsh3dFrame;
+
+    if (state && fighters[0] && fighters[1]) {
+      const phase = state.phase || 'PICKING', timer = state.timer || 0, victory = phase === 'VICTORY';
+      if (victory) {
+        if (!fighters[0].wasVictory) fighters.forEach((f) => { f.victoryAt = elapsed; f.wasVictory = true; });
+      } else if (fighters[0].wasVictory) {
+        fighters.forEach((f) => { f.wasVictory = false; });
+      }
+
+      fighters.forEach((f, i) => {
+        const q = i === 0 ? state.p1 : state.p2;
+        const toward = f.toward;
+        const sig = STYLES[f.charId] || STYLES.giant;
+        const winner = state.winnerSide === (i + 1);
+        let x = f.baseX, y = 0, rz = 0, ry = f.baseRot, pose = 'idle';
+
+        if (victory && winner) {
+          // Champion's lap: crouch → leap → sprint at the fallen rival → air strike
+          // → second leap → jog back → signature taunt, looping under the sparks.
+          const vt = Math.max(0, elapsed - (f.victoryAt || elapsed));
+          const t = vt % 6.2;
+          const lap = sig.lap, jump = sig.jump;
+          if (t < .42) {
+            pose = 'celebrate';
+            const k = ease(t / .42); y = -.10 * k * lap; rz = toward * .04 * k;
+          } else if (t < 1.35) {
+            const u = (t - .42) / .93, a = Math.sin(u * Math.PI);
+            pose = 'jump'; y = a * .92 * jump; rz = -toward * .06 * a;
+            x += toward * .14 * ease(Math.min(1, u * 1.8)) * lap;
+          } else if (t < 2.5) {
+            const u = ease((t - 1.35) / 1.15);
+            pose = 'run'; x += toward * (.14 + 1.00 * u) * lap;
+            y = Math.abs(Math.sin(elapsed * 13)) * .09; rz = -toward * .09 * u;
+          } else if (t < 3.16) {
+            const u = (t - 2.5) / .66;
+            pose = 'strike'; x += toward * (1.14 - .34 * ease(u)) * lap;
+            y = Math.max(0, Math.sin(u * Math.PI)) * .06; rz = -toward * .05;
+          } else if (t < 4.06) {
+            const u = (t - 3.16) / .90, a = Math.sin(u * Math.PI);
+            pose = 'jump'; x += toward * .80 * lap; y = a * .64 * jump; rz = toward * .05 * a;
+          } else if (t < 5.02) {
+            const u = ease((t - 4.06) / .96);
+            pose = 'run'; x += toward * .80 * lap * (1 - u);
+            y = Math.abs(Math.sin(elapsed * 13)) * .09; rz = -toward * .09 * (1 - u);
+          } else {
+            pose = 'celebrate';
+            const b = Math.sin(elapsed * 3.1);
+            y = Math.max(0, b) * .05; rz = toward * .03 * b; x += toward * .06;
+            if (sig.taunt === 'spin') ry = f.baseRot + (elapsed * 2.4) % (Math.PI * 2);
+            else if (sig.taunt === 'roar') { rz += toward * .10 * Math.abs(Math.sin(elapsed * 2.2)); y += Math.abs(Math.sin(elapsed * 2.6)) * .03; }
+            else if (sig.taunt === 'march') { y += Math.abs(Math.sin(elapsed * 6)) * .05; }
+            else if (sig.taunt === 'lurch') { ry = f.baseRot + Math.sin(elapsed * 1.3) * .18; x += toward * Math.sin(elapsed * 1.3) * .10; }
+            else if (sig.taunt === 'fly') { y += Math.abs(Math.sin(elapsed * 1.7)) * .22 * jump; rz += -toward * .05; }
+          }
+        } else if (victory) {
+          const vt = Math.max(0, elapsed - (f.victoryAt || elapsed));
+          const kd = ease(clamp(vt / .85, 0, 1));
+          pose = 'down';
+          y = .03 + .02 * kd;
+          x += toward * 2.20 * kd;
+          // Tip inward, toward the centre of the arena: falling outward used to put
+          // the champion's head outside the camera, so he read as half a fighter.
+          rz = -toward * 1.30 * kd;
+          if (kd >= 1) rz += -toward * Math.sin(elapsed * 1.3) * .01;
+        } else if ((q.fall || 0) > .02) {
+          // Full knockdown arc: stagger → fall → lie still → stand back up.
+          const since = Math.max(0, (q.fallMax || 2.6) - (q.fall || 0));
+          const riseStart = 1.86, riseEnd = 2.55;
+          if (since < .30) {
+            pose = 'hurt';
+            const amt = (1 - since / .30) * sig.recoil;
+            x -= toward * (.12 + .18 * amt); y = Math.sin(elapsed * 46) * .014 * amt;
+            rz = toward * .16 * amt; ry = f.baseRot - toward * .12 * amt;
+          } else if (since < riseStart) {
+            const kd = clamp((since - .30) / .62, 0, 1), e = ease(kd);
+            pose = 'fall';
+            y = .03 + .03 * e;
+            x += toward * 2.20 * e - toward * .12 * (1 - e);
+            rz = -toward * 1.30 * e;
+            ry = f.baseRot - toward * .18 * e;
+            if (kd >= 1) {
+              const settle = Math.sin(clamp((since - 1.0) / .32, 0, 1) * Math.PI);
+              y += settle * .02; rz += -toward * settle * .035;
+            }
+          } else {
+            const u = clamp((since - riseStart) / (riseEnd - riseStart), 0, 1), e = ease(u);
+            pose = 'getup';
+            y = -(1 - e) * .02 + Math.sin(u * Math.PI) * .045;
+            x += toward * 2.20 * (1 - e);
+            rz = -toward * 1.30 * (1 - e);
+            ry = f.baseRot - toward * .18 * (1 - e);
+          }
+        } else if ((q.hurt || 0) > .02) {
+          pose = 'hurt';
+          const amt = clamp((q.hurt || 0) / 1.2, 0, 1) * sig.recoil;
+          x -= toward * (.10 + .18 * amt); y = Math.sin(elapsed * 42) * .012 * amt;
+          rz = toward * .13 * amt; ry = f.baseRot - toward * .10 * amt;
+        } else if (phase === 'CHARGING') {
+          // Both fighters coil back and channel power into their raised fists.
+          pose = 'charge';
+          const t = clamp(timer / 1.85, 0, 1), gather = ease(t);
+          x -= toward * .16 * gather * sig.lean; y = Math.sin(elapsed * 22) * .014 * gather;
+          rz = toward * .055 * gather * sig.lean; ry = f.baseRot + toward * .03 * gather;
+        } else if (phase === 'SURGE_HIT' && state.applied) {
+          pose = 'idle';
+          x += toward * .22; y = Math.max(0, Math.sin(elapsed * 2.6)) * .012;
+        } else if (phase === 'TRAVEL_TO_CENTER' || phase === 'CENTER_CLASH' || phase === 'SURGE_HIT') {
+          // Release: both fighters thrust forward and stay locked in the clash.
+          pose = 'thrust';
+          const push = ease(phase === 'TRAVEL_TO_CENTER' ? clamp(timer / 1.28, 0, 1) : 1);
+          x += toward * .58 * push * sig.lunge; y = Math.max(0, Math.sin(push * Math.PI)) * .05;
+          rz = -toward * .11 * push; ry = f.baseRot + toward * .06 * push;
+        } else if (phase === 'DRAW_PULSE') {
+          pose = 'recoil';
+          const t = ease(clamp(timer / 1.15, 0, 1));
+          x -= toward * .34 * t; rz = toward * .14 * t;
+        } else {
+          const b = Math.sin(elapsed * 1.9 + f.seed);
+          y = Math.max(0, b) * .014; ry = f.baseRot + toward * .03 * b;
+        }
+
+
+        // Every action starts exactly once per pose so attack, hurt and fall read cleanly.
+        if (pose !== f.pose) {
+          // Charge from a standing base: freezing a deep crouch frame of the baked
+          // GroundSlam made the giant and knight fold to half height mid-attack.
+          if (pose === 'charge') setPose(f, f.idle || f.walk, f.idle ? null : .18);
+          else if (pose === 'thrust') setAction(f, f.attack || f.special, .45);
+          else if (pose === 'hurt') setAction(f, f.hit, .55);
+          else if (pose === 'fall') setAction(f, f.death || f.hit, .70);
+          else if (pose === 'down') setPose(f, f.death || f.hit || f.walk, .85);
+          else if (pose === 'getup') setPose(f, f.idle || f.walk, f.idle ? null : .22);
+          else if (pose === 'recoil') setAction(f, f.hit, .55);
+          else if (pose === 'run') setPose(f, f.run || f.walk, null);
+          else if (pose === 'jump') setAction(f, f.jump || f.kick || f.attack, .40);
+          else if (pose === 'strike') setAction(f, f.attack || f.special, .55);
+          else if (pose === 'celebrate') setPose(f, f.win || f.walk, f.win ? null : .20);
+          else setPose(f, f.idle || f.walk, f.idle ? null : .18);
+          f.pose = pose;
+        }
+
+        x = clamp(x, -8, 8);
+        // Ease the placed root so phase changes never snap the whole fighter.
+        const kRoot = 1 - Math.exp(-dt * 17);
+        f.sX += (x - f.sX) * kRoot;
+        f.sY += (y - f.sY) * kRoot;
+        f.sRz += (rz - f.sRz) * kRoot;
+        f.sRy += (ry - f.sRy) * Math.min(1, kRoot * .85);
+        f.root.position.set(f.sX, f.sY, FIGHTER_Z);
+        f.root.rotation.set(0, f.sRy, f.sRz);
+        f.mixer.update(dt);
+        f.moveT = pose === f.pose ? f.moveT + dt : 0;
+        applyRig(f, pose, elapsed, dt);
+        f.root.updateMatrixWorld(true);
+
+        if (f.prop && f.propBone) {
+          f.propBone.getWorldPosition(propWorld);
+          f.root.worldToLocal(propWorld);
+          f.prop.position.copy(propWorld);
+          f.prop.position.y += f.bodyH * .03;
+          // The rifle rides along the hand's own axis, so raising the arm aims it.
+          f.propBone.getWorldQuaternion(propQuat);
+          handY.set(0, 0, 1).applyQuaternion(propQuat).normalize();
+          f.root.getWorldQuaternion(rootQuat).invert();
+          handY.applyQuaternion(rootQuat);
+          f.prop.quaternion.setFromUnitVectors(barrelAxis, handY);
+        }
+
+        // Publish each fist's screen position so powers launch from the real gauntlets.
+        const bodyScale = f.bodyH / 2.9;
+        handLocal.set(toward * .18 * bodyScale, 1.92 * bodyScale, .62 * bodyScale);
+        handWorld.copy(handLocal);
+        f.root.localToWorld(handWorld).project(camera);
+        anchors[i === 0 ? 'p1' : 'p2'] = {
+          x: clamp(handWorld.x * .5 + .5, 0, 1),
+          y: clamp(-handWorld.y * .5 + .5, 0, 1)
+        };
+      });
+      window.gsh3dAnchors = anchors;
+    }
+
+    // Champion-select cards animate the chosen champion on their own canvases.
+    if (previewViews.length) {
+      const selectScreenEl = document.getElementById('selectScreen');
+      if (selectScreenEl && !selectScreenEl.classList.contains('hidden')) {
+        for (const v of previewViews) {
+          if (!v.body) continue;
+          fitPreview(v);
+          v.mixer.update(dt);
+          v.pr.render(v.sc, v.cam);
+        }
+      }
+    }
+
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(frame);
+})();
