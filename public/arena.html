@@ -2023,8 +2023,8 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
  const loader=new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
  // Rigged human fighters: Spartan on left, medieval Knight on right.
  const specs=[
-  {url:'/models/spartan-warrior.glb',x:-1.38,face:0.72,kind:'spartan'},
-  {url:'/models/knight-captain.glb',x:1.38,face:-0.72,kind:'knight'}
+  {url:'/models/animated-ogre-warrior.glb',x:-1.62,face:0.62,kind:'warrior'},
+  {url:'/models/animated-plate-knight.glb',x:1.62,face:-0.62,kind:'knight'}
  ];
  const fighters=[];
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -2040,14 +2040,14 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
   const gltf=await loader.loadAsync(spec.url); const model=gltf.scene;
   model.traverse(o=>{if(o.isMesh){o.frustumCulled=true;o.castShadow=false;o.receiveShadow=false;if(o.material){o.material.side=THREE.FrontSide;}}});
   const bounds=new THREE.Box3().setFromObject(model), size=bounds.getSize(new THREE.Vector3());
-  const targetHeight=2.72; model.scale.setScalar(targetHeight/Math.max(size.y,.001));
+  const targetHeight=3.05; model.scale.setScalar(targetHeight/Math.max(size.y,.001));
   const scaled=new THREE.Box3().setFromObject(model); model.position.y-=scaled.min.y;
   const root=new THREE.Group(); root.add(model); root.position.set(spec.x,0,0); root.rotation.y=spec.face; scene.add(root);
   const mixer=new THREE.AnimationMixer(model), clips=gltf.animations||[];
   const f={root,model,index,kind:spec.kind,mixer,clips,action:null,currentClip:null,
    idle:chooseClip({clips},[/^idle$/i]),walk:chooseClip({clips},[/walk|run|mv_tar21/i]),
-   attack:chooseClip({clips},[/atk01|^attack$/i]),special:chooseClip({clips},[/special|yunxuan/i]),
-   hit:chooseClip({clips},[/^hit$|hurt/i]),death:chooseClip({clips},[/^death$|shuimian/i]),
+   attack:chooseClip({clips},[/^attack$/i]),special:chooseClip({clips},[/groundslam|special/i]),
+   kick:chooseClip({clips},[/^kick$/i]),hit:chooseClip({clips},[/^hit$|hurt/i]),death:chooseClip({clips},[/^death$|fall|ground/i]),
    win:chooseClip({clips},[/^win$/i]),baseX:spec.x,baseRot:spec.face,seed:index*1.9,
    victoryAt:0,wasVictory:false,deathStarted:false,attackCycle:-1};
   fighters[index]=f; play(f,f.idle,true,0); return f;
@@ -2055,12 +2055,12 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
  function resize(){
   const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);
   renderer.setSize(w,h,false); camera.aspect=w/h;
-  camera.fov=w/h<1?43:40;
-  camera.position.set(0,w/h<1?2.0:2.0,w/h<1?10.7:10.4);
-  camera.lookAt(0,1.32,0); camera.updateProjectionMatrix();
+  camera.fov=w/h<1?46:42;
+  camera.position.set(0,w/h<1?2.05:2.0,w/h<1?12.0:11.3);
+  camera.lookAt(0,1.48,0); camera.updateProjectionMatrix();
  }
  const ro=new ResizeObserver(resize);ro.observe(host);resize();
- Promise.all(specs.map(loadOne)).then(()=>{window.gsh3dReady=true;console.info('Rigged Spartan and Knight loaded',fighters.map(f=>f.clips.map(c=>c.name)));}).catch(e=>{console.error('Rigged fighter GLB load failed:',e);window.gsh3dReady=false;});
+ Promise.all(specs.map(loadOne)).then(()=>{window.gsh3dReady=true;console.info('Rigged Ogre Warrior and Plate Knight loaded',fighters.map(f=>f.clips.map(c=>c.name)));}).catch(e=>{console.error('Rigged fighter GLB load failed:',e);window.gsh3dReady=false;});
  const clock=new THREE.Clock();let elapsed=0;
  function frame(){
   requestAnimationFrame(frame); if(document.hidden){clock.getDelta();return;}
@@ -2082,11 +2082,11 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
     const drop=ease(t); y=-.16-.62*drop; rz=toward*(.10+.92*drop); ry=f.baseRot+toward*.10*drop; sc=1-.025*drop;
    }else if(victory&&winner){
     if(f.win){play(f,f.win,true,.12);}
-    else {const cyc=Math.floor((elapsed-f.victoryAt)/1.45);if(cyc!==f.attackCycle){f.attackCycle=cyc;play(f,(cyc%3===1&&f.special)?f.special:f.attack||f.idle,false,.10);}}
+    else {const cyc=Math.floor((elapsed-f.victoryAt)/1.45);if(cyc!==f.attackCycle){f.attackCycle=cyc;play(f,(cyc%3===1&&(f.special||f.kick))?(f.special||f.kick):(f.attack||f.idle),false,.10);}}
     const t=(elapsed-f.victoryAt)%2.9; const pulse=Math.sin(t*2.1);
     x+=toward*(t<.8?.16:.05); rz=-toward*.05+Math.max(0,Math.sin(t*4))*.035; y=Math.max(0,Math.sin(t*5))*.025;
    }else if(hurt){play(f,f.hit||f.idle,false,.06);x-=toward*.12;rz=-toward*.12;}
-   else if(attacking){play(f,f.attack||f.special||f.idle,false,.08);const t=(elapsed%1.05)/1.05;const l=t<.36?ease(t/.36):t<.62?1-ease((t-.36)/.26):0;x+=toward*.34*l;rz=-toward*.08*l;}
+   else if(attacking){play(f,f.attack||f.kick||f.special||f.idle,false,.08);const t=(elapsed%1.05)/1.05;const l=t<.36?ease(t/.36):t<.62?1-ease((t-.36)/.26):0;x+=toward*.38*l;rz=-toward*.08*l;}
    else if(q.anim==='walk'){play(f,f.walk||f.idle,true,.15);x+=toward*.035*Math.sin(elapsed*4);}
    else {play(f,f.idle||f.walk,true,.2);const b=Math.sin(elapsed*2+f.seed);y=Math.max(0,b)*.012;ry=f.baseRot+toward*.018*b;}
    x+=(q.recoil||0)*.003; f.root.position.set(x,y,0);f.root.rotation.set(0,ry,rz);f.mixer.update(dt);
