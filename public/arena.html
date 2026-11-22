@@ -1924,8 +1924,9 @@ const p1NameInput = document.getElementById('p1NameInput');
 
     let lastFrameTime = performance.now();
     function mainLoop(now) {
-      const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+      const dt = Math.min(0.033, (now - lastFrameTime) / 1000);
       lastFrameTime = now;
+      if (document.hidden) { lastFrameTime = now; requestAnimationFrame(mainLoop); return; }
       game.time += dt;
 
       if (game.screen === 'POSTER') {
@@ -2005,91 +2006,100 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 (() => {
  const host=document.getElementById('warrior3DLayer'); if(!host) return;
- const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
- renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.7));
+ let renderer;
+ try { renderer=new THREE.WebGLRenderer({alpha:true,antialias:false,powerPreference:'high-performance',stencil:false,depth:true}); }
+ catch(e){ console.error('3D renderer unavailable',e); return; }
+ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25));
  renderer.outputColorSpace=THREE.SRGBColorSpace;
  renderer.toneMapping=THREE.ACESFilmicToneMapping;
- renderer.toneMappingExposure=1.12;
+ renderer.toneMappingExposure=1.05;
  host.appendChild(renderer.domElement);
  const scene=new THREE.Scene();
- const camera=new THREE.PerspectiveCamera(34,1,.1,100);
- camera.position.set(0,2.7,12.4); camera.lookAt(0,1.05,0);
- scene.add(new THREE.HemisphereLight(0xffffff,0x536078,2.0));
- const key=new THREE.DirectionalLight(0xffffff,2.5); key.position.set(-3,7,6); scene.add(key);
- const rim=new THREE.DirectionalLight(0xb9dcff,1.1); rim.position.set(4,4,-4); scene.add(rim);
- const loader=new GLTFLoader();
- loader.setMeshoptDecoder(MeshoptDecoder);
+ const camera=new THREE.PerspectiveCamera(43,1,.1,100);
+ camera.position.set(0,2.1,10.8); camera.lookAt(0,1.0,0);
+ scene.add(new THREE.HemisphereLight(0xffffff,0x536078,1.8));
+ const key=new THREE.DirectionalLight(0xffffff,2.1); key.position.set(-3,7,6); scene.add(key);
+ const rim=new THREE.DirectionalLight(0xb9dcff,.9); rim.position.set(4,4,-4); scene.add(rim);
+ const loader=new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
+ // The exact two user-supplied GLBs: Night King and Hell Knight.
  const specs=[
-  {url:'/models/spartan-warrior.glb',x:-1.18,face:0,clips:{idle:/^idle$/i,attack:/atk01|attack/i,hit:/hurt|hit/i,walk:/mv_tar21|walk/i,fall:/shuimian|death/i,victory:/^win$/i}},
-  {url:'/models/KnightCaptain.glb',x:1.18,face:Math.PI,clips:{idle:/^idle$/i,attack:/^attack$/i,hit:/^hit$/i,walk:/walk|run/i,fall:/^death$/i,victory:/^win$/i}}
+  {url:'/models/hell-knight.glb',x:-1.65,face:-0.78},
+  {url:'/models/ice-warrior.glb',x:1.65,face:0.78}
  ];
  const fighters=[];
- function choose(clips,rx){return clips.find(c=>rx.test(c.name))||null}
- function play(f,key,loop=true){
-  const clip=f.clips[key]||f.clips.idle;if(!clip)return;
-  if(f.current===clip && f.action && f.action.isRunning())return;
-  if(f.action){f.action.fadeOut(.12)}
-  const a=f.mixer.clipAction(clip);a.reset();a.enabled=true;a.setLoop(loop?THREE.LoopRepeat:THREE.LoopOnce,loop?Infinity:1);a.clampWhenFinished=!loop;a.fadeIn(.14).play();f.action=a;f.current=clip;
- }
- async function loadOne(s,index){
-  const gltf=await loader.loadAsync(s.url);
-  const root=new THREE.Group();root.add(gltf.scene);root.position.x=s.x;root.rotation.y=s.face;
-  const box=new THREE.Box3().setFromObject(gltf.scene), size=box.getSize(new THREE.Vector3());
-  const scale=2.35/Math.max(size.y,.001);gltf.scene.scale.setScalar(scale);
-  const scaledBox=new THREE.Box3().setFromObject(gltf.scene);
-  gltf.scene.position.y-=scaledBox.min.y;
+ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+ const ease=t=>{t=clamp(t,0,1);return t*t*(3-2*t)};
+ async function loadOne(spec,index){
+  const gltf=await loader.loadAsync(spec.url);
+  const model=gltf.scene;
+  model.traverse(o=>{if(o.isMesh){o.frustumCulled=true; if(o.material){o.material.side=THREE.FrontSide;}}});
+  const bounds=new THREE.Box3().setFromObject(model), size=bounds.getSize(new THREE.Vector3());
+  const targetHeight=1.82; model.scale.setScalar(targetHeight/Math.max(size.y,.001));
+  const scaled=new THREE.Box3().setFromObject(model); model.position.y-=scaled.min.y;
+  const root=new THREE.Group(); root.add(model); root.position.set(spec.x,0,0); root.rotation.y=spec.face;
   scene.add(root);
-  const mixer=new THREE.AnimationMixer(gltf.scene), clips=gltf.animations||[];
-  const f={root,mixer,clips:{idle:choose(clips,s.clips.idle),attack:choose(clips,s.clips.attack),hit:choose(clips,s.clips.hit),walk:choose(clips,s.clips.walk),fall:choose(clips,s.clips.fall),victory:choose(clips,s.clips.victory)},action:null,current:null,falling:false,hitLock:0,victoryClock:0,victoryFlip:false};
-  fighters[index]=f;play(f,'idle',true);
-  return f;
+  const f={root,model,index,phase:'idle',phaseAt:0,hitAt:0,fallAt:0,victoryAt:0,baseX:spec.x,baseY:0,baseRot:spec.face,seed:index*1.7,wasVictory:false};
+  fighters[index]=f; return f;
  }
  function resize(){
-  const w=host.clientWidth||1,h=host.clientHeight||1;
-  renderer.setSize(w,h,false);camera.aspect=w/h;
-  camera.fov=w/h<1?38:32;
-  camera.position.set(0,w/h<1?2.65:2.35,w/h<1?8.8:7.8);
-  camera.lookAt(0,1.15,0);camera.updateProjectionMatrix();
+  const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);
+  renderer.setSize(w,h,false); camera.aspect=w/h;
+  camera.fov=w/h<1?49:43;
+  camera.position.set(0,w/h<1?2.15:2.05,w/h<1?10.6:9.8);
+  camera.lookAt(0,0.96,0); camera.updateProjectionMatrix();
  }
  const ro=new ResizeObserver(resize);ro.observe(host);resize();
  Promise.all(specs.map(loadOne)).then(()=>{window.gsh3dReady=true;}).catch(e=>{console.error('Warrior GLB load failed:',e);window.gsh3dReady=false;});
- let last=performance.now();
- function frame(now){
-  requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000);last=now;
+ const clock=new THREE.Clock(); let elapsed=0;
+ function frame(){
+  requestAnimationFrame(frame);
+  if(document.hidden){clock.getDelta();return;}
+  const dt=Math.min(clock.getDelta(),.033); elapsed+=dt;
   const state=window.gsh3dFrame;
   if(state && fighters.length===2 && fighters[0] && fighters[1]){
    fighters.forEach((f,i)=>{
     const q=i===0?state.p1:state.p2;
-    const finalLoser=state.phase==='VICTORY' && state.winnerSide && state.winnerSide!==(i+1);
-    const finalWinner=state.phase==='VICTORY' && state.winnerSide===(i+1);
-    const losing=(state.phase==='SURGE_HIT' && state.winnerSide && state.winnerSide!==(i+1));
-    const falling=finalLoser || (q.fall||0)>0 || losing;
-    const hurt=(q.hurt||0)>0 || (state.phase==='SURGE_HIT' && losing);
-    const attacking=q.anim==='cast' || (state.phase==='SURGE_HIT' && state.winnerSide===(i+1));
+    const winner=state.winnerSide===(i+1);
+    const loser=state.winnerSide===(i===0?2:1);
+    const isVictory=state.phase==='VICTORY';
+    const falling=isVictory&&loser || (q.fall||0)>.02 || (state.phase==='SURGE_HIT'&&loser);
+    const hurt=(q.hurt||0)>.02 || (state.phase==='SURGE_HIT'&&loser);
+    const attacking=q.anim==='cast' || (state.phase==='SURGE_HIT'&&winner);
+    if(isVictory&&winner&&!f.wasVictory){f.victoryAt=elapsed;f.wasVictory=true;}
+    if(!isVictory)f.wasVictory=false;
+    let x=f.baseX, y=0, rz=0, ry=f.baseRot, rx=0, sc=1;
+    const toward=i===0?1:-1;
     if(falling){
-      if(!f.falling){play(f,'fall',false);f.falling=true;f.fallStarted=now;}
-      f.root.rotation.z=(i===0?-.65:.65);
-      f.root.position.y=-.22;
-    } else if(finalWinner){
-      f.falling=false;f.root.rotation.z=0;f.root.position.y=0;
-      f.victoryClock+=dt;
-      // Use a dedicated win clip when supplied; otherwise repeat the model's attack move with short pauses.
-      if(f.clips.victory) play(f,'victory',true);
-      else {
-        const cycle=f.victoryClock%2.15;
-        if(cycle<1.55) play(f,'attack',false);
-        else play(f,'idle',true);
-      }
+      const t=clamp((q.fall||0)>0?1-(q.fall/1.15):state.phase==='VICTORY'?elapsed-f.victoryAt:0,0,1);
+      const drop=ease(t);
+      y=-.76*drop; rz=toward*.95*drop; ry=f.baseRot+toward*.16*drop; sc=1-.035*drop;
+    } else if(isVictory&&winner){
+      const t=elapsed-f.victoryAt; const cycle=(t%2.65);
+      // Deliberate victory combo: step-in, two punch-like body lunges, kick-like lift, then salute pose.
+      if(cycle<.42){const k=ease(cycle/.42);x+=toward*.30*k;rz=-toward*.12*k;}
+      else if(cycle<.82){const k=Math.sin((cycle-.42)/.40*Math.PI);x+=toward*(.30+.22*k);ry=f.baseRot+toward*.28*k;rz=-toward*.20*k;}
+      else if(cycle<1.22){const k=Math.sin((cycle-.82)/.40*Math.PI);x+=toward*(.30+.16*k);y=.16*k;rz=toward*.22*k;}
+      else if(cycle<1.65){const k=ease((cycle-1.22)/.43);x+=toward*(.30-.30*k);rz=toward*.08*(1-k);}
+      else {const k=Math.sin((cycle-1.65)*3.1);y=.025+Math.max(0,k)*.045;ry=f.baseRot+toward*.10;}
     } else if(hurt){
-      play(f,'hit',false);f.root.rotation.z=0;f.root.position.y=0;
+      const pulse=Math.sin(elapsed*24); x-=toward*.13; rz=-toward*(.13+Math.abs(pulse)*.08); ry=f.baseRot-toward*.12;
     } else if(attacking){
-      play(f,'attack',false);f.root.rotation.z=0;f.root.position.y=0;
+      const t=(elapsed%1.05)/1.05;
+      const lunge=t<.38?ease(t/.38):t<.58?1-ease((t-.38)/.20):0;
+      x+=toward*(.04+.48*lunge); rz=-toward*.12*lunge; ry=f.baseRot+toward*.20*lunge;
+      y=Math.max(0,Math.sin(t*Math.PI*2))*.025;
+    } else if(q.anim==='win'){
+      const t=elapsed%1.9; y=.04+Math.max(0,Math.sin(t*5))*.08; ry=f.baseRot+toward*.12*Math.sin(t*2.5);
+    } else if(q.anim==='lose'){
+      y=-.65;rz=toward*.82;
     } else {
-      f.falling=false;f.root.rotation.z=0;f.root.position.y=0;
-      if(q.anim==='walk')play(f,'walk',true);else play(f,'idle',true);
+      const idle=Math.sin(elapsed*2.15+f.seed);
+      y=.012+Math.max(0,idle)*.018; ry=f.baseRot+toward*.025*idle;
+      // Subtle ready stance breathing without costly bone updates.
+      rz=.012*Math.sin(elapsed*1.7+f.seed);
     }
-    f.root.position.x=specs[i].x+(q.recoil||0)*.006;
-    f.mixer.update(dt);
+    x+=(q.recoil||0)*.004;
+    f.root.position.set(x,y,0); f.root.rotation.set(rx,ry,rz); f.root.scale.setScalar(sc);
    });
   }
   renderer.render(scene,camera);
