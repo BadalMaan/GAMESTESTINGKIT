@@ -248,7 +248,7 @@
   .slot-reel::before{left:0;background:linear-gradient(90deg,#f4fbff,rgba(244,251,255,0))}
   .slot-reel::after{right:0;background:linear-gradient(270deg,#f4fbff,rgba(244,251,255,0))}
   .slot-reel-track{display:flex;gap:6px;height:100%;width:100%;will-change:transform;transform:translate3d(0,0,0)}
-  .slot-reel-track.spin-blur{filter:blur(1px)}
+  .slot-reel-track.spin-blur{opacity:.9}
   /* Five cards wide: the whole slot row slides, so every power stays readable. */
   .slot-reel-card{position:relative;flex:0 0 calc((100% - 24px)/5);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px;overflow:hidden}
   /* The hint: as the strip brakes, the frame and the cards warm up with the landing colour. */
@@ -1538,13 +1538,21 @@ const p1NameInput = document.getElementById('p1NameInput');
       arenaStatusPill.classList.toggle('hidden', !show);
     }
 
+    // Runs every frame, so the DOM is only touched when a number really changed.
+    let hudP1Last = -1, hudP2Last = -1;
     function updatePowerLinesHUD() {
       const p1Pct = Math.max(0, Math.min(100, Math.round(game.p1.power)));
       const p2Pct = Math.max(0, Math.min(100, Math.round(game.p2.power)));
-      hudP1PowerText.textContent = `${p1Pct}%`;
-      hudP2PowerText.textContent = `${p2Pct}%`;
-      hudP1PowerBar.style.width = `${p1Pct}%`;
-      hudP2PowerBar.style.width = `${p2Pct}%`;
+      if (p1Pct !== hudP1Last) {
+        hudP1Last = p1Pct;
+        hudP1PowerText.textContent = `${p1Pct}%`;
+        hudP1PowerBar.style.width = `${p1Pct}%`;
+      }
+      if (p2Pct !== hudP2Last) {
+        hudP2Last = p2Pct;
+        hudP2PowerText.textContent = `${p2Pct}%`;
+        hudP2PowerBar.style.width = `${p2Pct}%`;
+      }
     }
 
     function renderSlotButtons() {
@@ -1576,7 +1584,9 @@ const p1NameInput = document.getElementById('p1NameInput');
     // tears past blurred, brakes hard, then crawls the last card under the centre
     // frame while the window takes on the winning colour (the hint), snaps home
     // on a random power and is wiped away a heartbeat later.
-    const REEL_SPIN_MS = 2650;
+    // Fast and unreadable on purpose: the whole shuffle is over in under a second,
+    // so nobody can track a card across the strip and work out where a power landed.
+    const REEL_SPIN_MS = 820;
     function reelCard(pw, index) {
       const card = document.createElement('div');
       card.className = 'slot-reel-card';
@@ -1630,43 +1640,45 @@ const p1NameInput = document.getElementById('p1NameInput');
 
         if (track.animate) {
           const anim = track.animate([
-            { transform: 'translate3d(0,0,0)', offset: 0, easing: 'cubic-bezier(.08,.5,.28,1)' },
-            { transform: `translate3d(${-dist * .58}px,0,0)`, offset: .46, easing: 'cubic-bezier(.22,.06,.42,1)' },
-            { transform: `translate3d(${-dist * .9}px,0,0)`, offset: .76, easing: 'linear' },
-            { transform: `translate3d(${-dist * .972}px,0,0)`, offset: .91, easing: 'linear' },
-            { transform: `translate3d(${-dist}px,0,0)`, offset: 1 }
+            // Flat out from the first frame, braking hard only in the last fifth so
+            // the strip never crawls slowly enough to be read.
+            { transform: 'translate3d(0,0,0)', offset: 0, easing: 'linear' },
+            { transform: `translate3d(${-dist * .72}px,0,0)`, offset: .5, easing: 'linear' },
+            { transform: `translate3d(${-dist * .93}px,0,0)`, offset: .8, easing: 'linear' },
+            { transform: `translate3d(${-dist}px,0,0)`, offset: 1, easing: 'cubic-bezier(.15,.85,.3,1)' }
           ], { duration: spinMs, fill: 'forwards' });
-          // Blur only survives the flat-out part, so the slow roll is readable.
           window.setTimeout(() => {
             if (stamp !== game.slotSequence) return;
             track.classList.remove('spin-blur');
             reel.classList.add('hinting');
-          }, Math.round(spinMs * .5));
+          }, Math.round(spinMs * .62));
           anim.finished.then(() => {
             if (stamp !== game.slotSequence) return;
             el.classList.remove('reeling');
+            // The strip fades the instant it stops. Holding the landed set would
+            // show exactly which power ended up in which slot, which has to stay secret.
             reel.classList.remove('hinting');
-            reel.classList.add('reel-landed');
+            reel.classList.add('out');
           }).catch(() => {});
         } else {
           track.style.transform = `translate3d(${-dist}px,0,0)`;
-          reel.classList.add('reel-landed');
           el.classList.remove('reeling');
+          reel.classList.add('out');
         }
       });
 
       // Ratchet ticks start frantic and stretch out as the reel brakes.
       let ticking = true;
       const t0 = performance.now();
-      const tick = () => {
+              const tick = () => {
         if (!ticking || stamp !== game.slotSequence) return;
         const e = performance.now() - t0;
         if (e > spinMs) return;
         const k = e / spinMs;
         sfx.playReelTick(1520 - k * 980);
-        window.setTimeout(tick, 26 + Math.pow(k, 2.4) * 640);
+        window.setTimeout(tick, 22 + Math.pow(k, 2.4) * 210);
       };
-      window.setTimeout(tick, 40);
+      window.setTimeout(tick, 30);
 
       window.setTimeout(() => {
         if (stamp !== game.slotSequence) return;
@@ -1692,7 +1704,7 @@ const p1NameInput = document.getElementById('p1NameInput');
           updateAttackButtonState();
           setStatusPill(`ROUND ${String(game.round).padStart(2, '0')} — PICK 1–5`, true);
         }, 150);
-      }, spinMs + 500);
+      }, spinMs + 300);
     }
 
     function handleSlotPick(playerNum, slotIndex) {
@@ -2289,6 +2301,9 @@ const p1NameInput = document.getElementById('p1NameInput');
       }
 
       // Large, saturated projectile head. The dark rim keeps its shape readable.
+      // Only drawn once the bolt has actually left the hand: at near-zero length it
+      // used to park a glowing ring right on the champion's fist.
+      if (len > 70) {
       const headX = len;
       ctx.save();
       ctx.translate(headX, 0);
@@ -2308,6 +2323,7 @@ const p1NameInput = document.getElementById('p1NameInput');
       ctx.beginPath(); ctx.arc(-3, -3, 7, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
       ctx.restore();
+      }
     }
 
     function spawnImpactBurst(x, y, power) {
@@ -2315,7 +2331,7 @@ const p1NameInput = document.getElementById('p1NameInput');
       [1, .72, .46].forEach((factor,index)=>shockRings.push({
         x,y,radius:8+index*12,maxRadius:150*factor,color:index===1?'#ffffff':c,alpha:.98-index*.12
       }));
-      const count = QUALITY.tier === 0 ? 46 : 24;
+      const count = QUALITY.tier === 0 ? 30 : 18;
       for(let i=0;i<count;i++){
         const angle=(Math.PI*2*i/count)+(Math.random()-.5)*.16;
         const speed=2.5+Math.random()*9;
@@ -2865,22 +2881,28 @@ const p1NameInput = document.getElementById('p1NameInput');
     // Start sharp, then step the backing stores and particle budget down if the
     // device cannot hold a smooth frame. It only ever steps down, so it cannot
     // oscillate between two resolutions.
-    const QUALITY = { tier: 0, dpr: Math.min(window.devicePixelRatio || 1, 1.5), acc: 0, frames: 0 };
+    // Tier 0 caps the backing store at 1.35x so a 1440p-class panel never pays for
+    // a 2x-supersampled repaint; the canvas art is soft enough that the difference
+    // is invisible while the frame budget roughly halves.
+    const QUALITY = { tier: 0, dpr: Math.min(window.devicePixelRatio || 1, 1.35), acc: 0, frames: 0 };
     function applyQuality() {
-      QUALITY.dpr = QUALITY.tier === 0 ? Math.min(window.devicePixelRatio || 1, 1.5)
-                   : QUALITY.tier === 1 ? Math.min(window.devicePixelRatio || 1, 1.1)
-                   : 0.85;
+      QUALITY.dpr = QUALITY.tier === 0 ? Math.min(window.devicePixelRatio || 1, 1.35)
+                   : QUALITY.tier === 1 ? Math.min(window.devicePixelRatio || 1, 1)
+                   : 0.82;
       if (typeof window.gshSetQuality === 'function') window.gshSetQuality(QUALITY.tier);
       BG_CACHE.clear();
       resizeAllCanvases();
     }
+    // 47 fps counts as "not smooth enough": at 60 or 120 Hz the average frame is
+    // 16.6 or 8.3 ms, so this only fires when the device is genuinely dropping.
+    // Bad frames are caught faster (20 samples) so a hitch steps down immediately.
     function trackQuality(dt) {
       if (QUALITY.tier >= 2) return;
       QUALITY.acc += dt; QUALITY.frames += 1;
-      if (QUALITY.frames < 60) return;
+      if (QUALITY.frames < (QUALITY.acc > 0.030 ? 20 : 45)) return;
       const avg = QUALITY.acc / QUALITY.frames;
       QUALITY.acc = 0; QUALITY.frames = 0;
-      if (avg > 0.023) { QUALITY.tier += 1; applyQuality(); }
+      if (avg > 0.021) { QUALITY.tier += 1; applyQuality(); }
     }
 
     // Every canvas gets a device-pixel-resolution backing store sized by the
@@ -2902,16 +2924,18 @@ const p1NameInput = document.getElementById('p1NameInput');
     }
 
     function beginCanvasFrame(canvas) {
-      // Skip any canvas whose screen is hidden: no layout, no drawing, no cost.
-      if (!canvas || !canvas.offsetWidth || !canvas.offsetHeight) return { ctx: null, w: 0, h: 0 };
+      // No layout reads here on purpose: reading offsetWidth every frame forced the
+      // browser to flush layout twice per tick. The cached CSS size is kept up to date
+      // by the resize observer instead, and the main loop only calls this for the
+      // canvas of the screen that is actually showing.
+      if (!canvas) return { ctx: null, w: 0, h: 0 };
       const dpr = canvas._dpr || 1;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas._ctx || (canvas._ctx = canvas.getContext('2d'));
+      const w = canvas._cssW || Math.round(canvas.width / dpr);
+      const h = canvas._cssH || Math.round(canvas.height / dpr);
+      if (!w || !h) return { ctx: null, w: 0, h: 0 };
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      return {
-        ctx,
-        w: canvas._cssW || Math.round(canvas.width / dpr),
-        h: canvas._cssH || Math.round(canvas.height / dpr)
-      };
+      return { ctx, w, h };
     }
 
     function resizeAllCanvases() {
@@ -2919,6 +2943,18 @@ const p1NameInput = document.getElementById('p1NameInput');
       resizeCanvasToParent(p1PreviewCanvas);
       resizeCanvasToParent(p2PreviewCanvas);
       resizeCanvasToParent(battleCanvas);
+    }
+    // Keep the cached canvas sizes honest without touching layout inside the frame loop.
+    if (typeof ResizeObserver === 'function') {
+      const canvasRO = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const canvas = entry.target.querySelector('canvas');
+          if (canvas) resizeCanvasToParent(canvas);
+        }
+      });
+      [posterCanvas, p1PreviewCanvas, p2PreviewCanvas, battleCanvas].forEach((canvas) => {
+        if (canvas && canvas.parentElement) canvasRO.observe(canvas.parentElement);
+      });
     }
 
     let lastFrameTime = performance.now();

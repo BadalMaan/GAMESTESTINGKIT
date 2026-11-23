@@ -289,15 +289,17 @@ const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, fo
   if (!host) return;
 
   let renderer;
+  // A 2x+ display already supersamples the models, so MSAA there is pure cost.
+  const hiDpi = (window.devicePixelRatio || 1) >= 1.5;
   try {
-    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'high-performance', stencil: false, depth: true });
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: !hiDpi, powerPreference: 'high-performance', stencil: false, depth: true });
   } catch (e) {
     console.error('3D renderer unavailable', e);
     return;
   }
   // Cap the backing store: full DPR on a big panel is the main reason the arena
   // crawls. The quality tier can lower it further at runtime.
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.08;
@@ -417,6 +419,25 @@ const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, fo
       f.action = next; f.currentClip = clip; f.poseKey = key;
     } else {
       setPose(f, f.walk || f.run, freezeFallback);
+    }
+  }
+
+  // Sustained poses (the clash hold is over two seconds) must not freeze the
+  // attack halfway through: the clip loops so the champion keeps driving into the
+  // deadlock instead of standing there mid-windup.
+  function setActionLoop(f, clip, freezeFallback) {
+    if (clip) {
+      const key = `${clip.name}|loop`;
+      if (f.poseKey === key) return;
+      const next = f.mixer.clipAction(clip);
+      next.stop(); next.reset(); next.enabled = true; next.setEffectiveWeight(1);
+      next.setLoop(THREE.LoopRepeat, Infinity); next.clampWhenFinished = false;
+      next.paused = false; next.setEffectiveTimeScale(1);
+      next.play();
+      if (f.action && f.action !== next) f.action.stop();
+      f.action = next; f.currentClip = clip; f.poseKey = key;
+    } else {
+      setPose(f, f.idle || f.walk, freezeFallback);
     }
   }
 
@@ -756,7 +777,7 @@ const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, fo
   let qualityTier = 0;
   window.gshSetQuality = (tier) => {
     qualityTier = Math.max(0, Math.min(2, Number(tier) || 0));
-    const cap = qualityTier === 0 ? 1.5 : qualityTier === 1 ? 1.05 : 0.8;
+    const cap = qualityTier === 0 ? 1.35 : qualityTier === 1 ? 1 : 0.8;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
     resize();
   };
@@ -950,7 +971,7 @@ const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, fo
           // Charge from a standing base: freezing a deep crouch frame of the baked
           // GroundSlam made the giant and knight fold to half height mid-attack.
           if (pose === 'charge') setPose(f, f.idle || f.walk, f.idle ? null : .18);
-          else if (pose === 'thrust') setAction(f, f.attack || f.special, .45);
+          else if (pose === 'thrust') setActionLoop(f, f.attack || f.special, .45);
           else if (pose === 'hurt') setAction(f, f.hit, .55);
           else if (pose === 'fall') setAction(f, f.death || f.hit, .70);
           else if (pose === 'down') setPose(f, f.death || f.hit || f.walk, .85);
