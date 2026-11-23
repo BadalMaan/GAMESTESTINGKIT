@@ -295,7 +295,9 @@ const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, fo
     console.error('3D renderer unavailable', e);
     return;
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // Cap the backing store: full DPR on a big panel is the main reason the arena
+  // crawls. The quality tier can lower it further at runtime.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.08;
@@ -663,7 +665,7 @@ const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, fo
       if (!holder) return;
       let pr;
       try { pr = new THREE.WebGLRenderer({ alpha: true, antialias: true }); } catch (e) { return; }
-      pr.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      pr.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1));
       pr.outputColorSpace = THREE.SRGBColorSpace;
       pr.toneMapping = THREE.ACESFilmicToneMapping;
       pr.toneMappingExposure = 1.08;
@@ -749,6 +751,15 @@ const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, fo
   ro.observe(host);
   buildPreviews();
   resize();
+
+  // Called by the page when it has to trade sharpness for a steady frame rate.
+  let qualityTier = 0;
+  window.gshSetQuality = (tier) => {
+    qualityTier = Math.max(0, Math.min(2, Number(tier) || 0));
+    const cap = qualityTier === 0 ? 1.5 : qualityTier === 1 ? 1.05 : 0.8;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
+    resize();
+  };
   refreshAll().catch((e) => { console.error('Initial 3D load failed', e); window.gsh3dReady = false; window.gsh3dAnchors = null; });
 
   // ---- Render loop -------------------------------------------------------
@@ -759,15 +770,40 @@ const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, fo
   const handY = new THREE.Vector3(), barrelAxis = new THREE.Vector3(0, 0, 1);
   const anchors = { p1: null, p2: null };
 
+  const arenaScreenEl = document.getElementById('arenaScreen');
+  const onArenaScreen = () => !!arenaScreenEl && !arenaScreenEl.classList.contains('hidden');
+
   function frame() {
     requestAnimationFrame(frame);
     if (document.hidden) { clock.getDelta(); return; }
     const dt = Math.min(clock.getDelta(), .033);
     elapsed += dt;
+
+    // Only step and draw the arena while it is on screen. The champion-select
+    // cards keep their own tiny canvases; the arena renderer costs nothing
+    // while the player is on another screen.
+    if (!onArenaScreen()) {
+      if (previewViews.length) {
+        const selectScreenEl = document.getElementById('selectScreen');
+        if (selectScreenEl && !selectScreenEl.classList.contains('hidden')) {
+          for (const v of previewViews) {
+            if (!v.body) continue;
+            fitPreview(v);
+            v.mixer.update(dt);
+            v.pr.render(v.sc, v.cam);
+          }
+        }
+      }
+      return;
+    }
+
     const state = window.gsh3dFrame;
 
     if (state && fighters[0] && fighters[1]) {
       const phase = state.phase || 'PICKING', timer = state.timer || 0, victory = phase === 'VICTORY';
+      // The page owns the cinematic tempo; read it here so both stay in sync.
+      const DURS = state.durs || { charge: 1.85, travel: 1.28, draw: 1.15 };
+      const FT = state.fallTimings || { stagger: .30, riseStart: 1.86, riseEnd: 2.55 };
       if (victory) {
         if (!fighters[0].wasVictory) fighters.forEach((f) => { f.victoryAt = elapsed; f.wasVictory = true; });
       } else if (fighters[0].wasVictory) {
@@ -824,37 +860,49 @@ const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, fo
           const kd = ease(clamp(vt / .85, 0, 1));
           pose = 'down';
           y = .03 + .02 * kd;
-          x += toward * 2.20 * kd;
-          // Tip inward, toward the centre of the arena: falling outward used to put
-          // the champion's head outside the camera, so he read as half a fighter.
-          rz = -toward * 1.30 * kd;
-          if (kd >= 1) rz += -toward * Math.sin(elapsed * 1.3) * .01;
+          // Thrown away from the winner, tipping out onto the terrace.
+          x -= toward * .62 * kd;
+          rz = toward * 1.12 * kd;
+          if (kd >= 1) rz += toward * Math.sin(elapsed * 1.3) * .01;
         } else if ((q.fall || 0) > .02) {
           // Full knockdown arc: stagger → fall → lie still → stand back up.
           const since = Math.max(0, (q.fallMax || 2.6) - (q.fall || 0));
-          const riseStart = 1.86, riseEnd = 2.55;
-          if (since < .30) {
+          const riseStart = FT.riseStart, riseEnd = FT.riseEnd;
+          if (since < FT.stagger) {
             pose = 'hurt';
-            const amt = (1 - since / .30) * sig.recoil;
+            const amt = (1 - since / FT.stagger) * sig.recoil;
             x -= toward * (.12 + .18 * amt); y = Math.sin(elapsed * 46) * .014 * amt;
             rz = toward * .16 * amt; ry = f.baseRot - toward * .12 * amt;
           } else if (since < riseStart) {
-            const kd = clamp((since - .30) / .62, 0, 1), e = ease(kd);
+            // Knocked off both feet: the body is thrown back, arcs over, slams the
+            // terrace, rebounds once on the shoulder and settles flat before the
+            // slow get-up. Gravity accelerates the arc so the fall reads as weight,
+            // not as a slow tip-over.
+            const fallT = clamp((since - FT.stagger) / .62, 0, 1);
+            const e = fallT * fallT;
             pose = 'fall';
-            y = .03 + .03 * e;
-            x += toward * 2.20 * e - toward * .12 * (1 - e);
-            rz = -toward * 1.30 * e;
+            y = .03 + .045 * e;
+            // Knocked AWAY from the strike, never gliding into the attacker.
+            // Kept short enough that the body stays inside the frame.
+            x -= toward * .55 * e - toward * .14 * (1 - e);
+            rz = toward * 1.08 * e;
             ry = f.baseRot - toward * .18 * e;
-            if (kd >= 1) {
-              const settle = Math.sin(clamp((since - 1.0) / .32, 0, 1) * Math.PI);
-              y += settle * .02; rz += -toward * settle * .035;
+            const bt = clamp((since - FT.stagger - .62) / .62, 0, 1);
+            if (bt > 0) {
+              const bounce = Math.sin(bt * Math.PI) * (1 - bt * .45);
+              y += bounce * .08;
+              x -= toward * .10 * bounce;
+              rz += toward * .075 * bounce;
+              // Momentum keeps the limbs twitching a beat after the torso lands.
+              rz -= toward * Math.sin(elapsed * 9) * .014 * (1 - bt);
+              x += toward * Math.sin(elapsed * 6.4) * .006 * (1 - bt);
             }
           } else {
             const u = clamp((since - riseStart) / (riseEnd - riseStart), 0, 1), e = ease(u);
             pose = 'getup';
             y = -(1 - e) * .02 + Math.sin(u * Math.PI) * .045;
-            x += toward * 2.20 * (1 - e);
-            rz = -toward * 1.30 * (1 - e);
+            x -= toward * .55 * (1 - e);
+            rz = toward * 1.08 * (1 - e);
             ry = f.baseRot - toward * .18 * (1 - e);
           }
         } else if ((q.hurt || 0) > .02) {
@@ -865,21 +913,31 @@ const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, fo
         } else if (phase === 'CHARGING') {
           // Both fighters coil back and channel power into their raised fists.
           pose = 'charge';
-          const t = clamp(timer / 1.85, 0, 1), gather = ease(t);
+          const t = clamp(timer / DURS.charge, 0, 1), gather = ease(t);
           x -= toward * .16 * gather * sig.lean; y = Math.sin(elapsed * 22) * .014 * gather;
           rz = toward * .055 * gather * sig.lean; ry = f.baseRot + toward * .03 * gather;
         } else if (phase === 'SURGE_HIT' && state.applied) {
-          pose = 'idle';
-          x += toward * .22; y = Math.max(0, Math.sin(elapsed * 2.6)) * .012;
+          // The winner stays thrown forward while the power is still landing.
+          pose = 'thrust';
+          const ss = clamp(state.surge || 0, 0, 1);
+          x += toward * (.3 + .3 * ss); y = Math.max(0, Math.sin(elapsed * 2.6)) * .012;
         } else if (phase === 'TRAVEL_TO_CENTER' || phase === 'CENTER_CLASH' || phase === 'SURGE_HIT') {
           // Release: both fighters thrust forward and stay locked in the clash.
           pose = 'thrust';
-          const push = ease(phase === 'TRAVEL_TO_CENTER' ? clamp(timer / 1.28, 0, 1) : 1);
+          const push = ease(phase === 'TRAVEL_TO_CENTER' ? clamp(timer / DURS.travel, 0, 1) : 1);
           x += toward * .58 * push * sig.lunge; y = Math.max(0, Math.sin(push * Math.PI)) * .05;
           rz = -toward * .11 * push; ry = f.baseRot + toward * .06 * push;
+          // Both champions brace into the deadlock: the strain shows as a tremble
+          // that grows until the breakthrough fires.
+          if (phase === 'CENTER_CLASH') {
+            const strain = Math.min(1, timer / 1.2);
+            x += toward * Math.sin(elapsed * 27) * .022 * strain;
+            rz += Math.sin(elapsed * 21) * .016 * strain;
+            y += Math.abs(Math.sin(elapsed * 17)) * .012 * strain;
+          }
         } else if (phase === 'DRAW_PULSE') {
           pose = 'recoil';
-          const t = ease(clamp(timer / 1.15, 0, 1));
+          const t = ease(clamp(timer / DURS.draw, 0, 1));
           x -= toward * .34 * t; rz = toward * .14 * t;
         } else {
           const b = Math.sin(elapsed * 1.9 + f.seed);
@@ -944,19 +1002,6 @@ const RIG_GAIN = { spineA: .45, spineB: .45, spineC: .5, head: .8, foreL: .6, fo
         };
       });
       window.gsh3dAnchors = anchors;
-    }
-
-    // Champion-select cards animate the chosen champion on their own canvases.
-    if (previewViews.length) {
-      const selectScreenEl = document.getElementById('selectScreen');
-      if (selectScreenEl && !selectScreenEl.classList.contains('hidden')) {
-        for (const v of previewViews) {
-          if (!v.body) continue;
-          fitPreview(v);
-          v.mixer.update(dt);
-          v.pr.render(v.sc, v.cam);
-        }
-      }
     }
 
     renderer.render(scene, camera);

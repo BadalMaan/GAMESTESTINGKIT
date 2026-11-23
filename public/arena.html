@@ -240,22 +240,58 @@
 </style>
 
 <style id="slot-reel-ticker">
-  /* Round-end news-ticker replay of the 1-5 mystery slots */
-  #p1SlotsContainer,#p2SlotsContainer{position:relative!important;overflow:hidden!important}
-  .slot-reel{position:absolute;inset:0;z-index:4;overflow:hidden;border-radius:12px;background:linear-gradient(180deg,#fff,#e2f1fd);box-shadow:inset 0 0 0 1px #b4d7ec;opacity:0;transition:opacity .1s linear;pointer-events:none}
-  #p1SlotsContainer.reeling .slot-reel,#p2SlotsContainer.reeling .slot-reel{opacity:1}
-  .slot-reel-track{display:flex;height:100%;width:200%;will-change:transform}
-  .slot-reel-card{flex:0 0 10%;display:grid;place-items:center;font:900 21px/1 Orbitron,Inter,sans-serif;color:#17476a;text-shadow:0 1px 0 #fff}
-  .slot-reel-track.running{animation:reelMarquee 1.2s cubic-bezier(.32,0,.6,1) both}
-  @keyframes reelMarquee{0%{transform:translateX(0)}22%{transform:translateX(-15%)}100%{transform:translateX(-50%)}}
+  /* Round-end power reel: real slot-machine strip that spins, brakes, lands and wipes. */
+  #p1SlotsContainer,#p2SlotsContainer{position:relative!important;overflow:hidden!important;contain:layout paint!important}
+  .slot-reel{position:absolute;inset:0;z-index:6;overflow:hidden;border-radius:12px;background:linear-gradient(180deg,#fbfdff,#dcefff);box-shadow:inset 0 0 0 1px #a9cfe9;pointer-events:none;opacity:1;transition:opacity .14s linear;--rl:#47b6ff}
+  .slot-reel.out{opacity:0}
+  .slot-reel::before,.slot-reel::after{content:'';position:absolute;top:0;bottom:0;width:16px;z-index:2;pointer-events:none}
+  .slot-reel::before{left:0;background:linear-gradient(90deg,#f4fbff,rgba(244,251,255,0))}
+  .slot-reel::after{right:0;background:linear-gradient(270deg,#f4fbff,rgba(244,251,255,0))}
+  .slot-reel-track{display:flex;gap:6px;height:100%;width:100%;will-change:transform;transform:translate3d(0,0,0)}
+  .slot-reel-track.spin-blur{filter:blur(1px)}
+  /* Five cards wide: the whole slot row slides, so every power stays readable. */
+  .slot-reel-card{position:relative;flex:0 0 calc((100% - 24px)/5);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px;overflow:hidden}
+  /* The hint: as the strip brakes, the frame and the cards warm up with the landing colour. */
+  .slot-reel.hinting{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--rl) 45%,#ffffff),0 0 14px color-mix(in srgb,var(--rl) 38%,transparent)}
+  .slot-reel.hinting .slot-reel-card{filter:brightness(1.05)}
+  .slot-reel.reel-landed{box-shadow:inset 0 0 0 2px var(--rl),0 0 22px color-mix(in srgb,var(--rl) 55%,transparent)}
+  .slot-reel.reel-landed .slot-reel-card{animation:reelLand .32s cubic-bezier(.2,.9,.3,1) both}
+  @keyframes reelLand{0%{transform:scale(.95)}60%{transform:scale(1.035)}100%{transform:scale(1)}}
+
+  /* Cinematic grade + impact flash for the clash. */
+  #arenaVignette{position:fixed;inset:0;z-index:5;pointer-events:none;opacity:0;transition:opacity .5s ease;background:radial-gradient(ellipse at 50% 52%,rgba(2,8,16,0) 38%,rgba(2,8,16,.26) 80%,rgba(2,8,16,.46) 100%)}
+  #arenaVignette.on{opacity:1}
+  #arenaFlash{position:fixed;inset:0;z-index:7;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 52%,#ffffff,#dff1ff 44%,rgba(255,255,255,0) 80%);transition:opacity .2s ease}
+  #arenaFlash.hit{transition:none}
+
+  /* A locked pick stays a mystery card: the power is never shown before the clash. */
+  .power-slot-btn.mystery-slot{background:linear-gradient(180deg,#f4fbff,#d6ebfb)!important;border:1px dashed #78aed2!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.85),0 3px 9px rgba(9,38,64,.16)!important}
+  .power-slot-btn .slot-mystery{font:900 25px/1 Orbitron,Inter,sans-serif;color:#1b6fa8;text-shadow:0 1px 0 #fff,0 0 10px rgba(71,182,255,.55);animation:mysteryPulse 1.6s ease-in-out infinite}
+  .power-slot-btn.mystery-slot .slot-art-name{color:#2c6a95!important;letter-spacing:.14em}
+  @keyframes mysteryPulse{0%,100%{opacity:.72;transform:scale(.96)}50%{opacity:1;transform:scale(1.05)}}
+
+  /* Released-power arsenal: one card only, then the whole box in that colour. */
+  .power-inventory.arsenal-clash{background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(226,241,255,.96))!important}
+  .power-inventory.arsenal-clash .power-list{justify-content:center}
+  .power-inventory.arsenal-clash .power-card.released-card{width:98px;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 0 20px color-mix(in srgb,var(--pc) 60%,transparent)}
+  .power-inventory.arsenal-clash .released-card .pc-name{font-size:8.6px}
+  .power-inventory.arsenal-clash-hot{background:linear-gradient(180deg,color-mix(in srgb,var(--rel-color) 84%,#ffffff),color-mix(in srgb,var(--rel-color) 96%,#04101d))!important;border-color:var(--rel-color)!important;box-shadow:0 0 26px color-mix(in srgb,var(--rel-color) 65%,transparent),inset 0 1px rgba(255,255,255,.5)!important;transition:background .3s ease,box-shadow .3s ease}
+  .power-inventory.arsenal-clash-hot{padding:11px 13px!important}
+  .power-inventory.arsenal-clash-hot .power-card.released-card{background:rgba(255,255,255,.76);box-shadow:0 0 0 1px rgba(255,255,255,.7),0 4px 12px rgba(4,16,29,.35)}
+  .power-inventory.arsenal-won{filter:brightness(1.06) saturate(1.08)}
+  .power-inventory.arsenal-won .released-card{box-shadow:0 0 0 2px #fff,0 0 30px #fff9d6,0 0 60px color-mix(in srgb,var(--rel-color) 80%,transparent)!important}
+  .power-inventory.arsenal-lost{filter:saturate(.5) brightness(.92)}
+  .power-inventory.arsenal-lost .released-card{opacity:.7}
   .slot-settle .power-slot-btn{animation:slotSettle .3s cubic-bezier(.2,.9,.3,1) both}
   @keyframes slotSettle{0%{transform:scale(.88);opacity:.25}65%{transform:scale(1.07);opacity:1}100%{transform:scale(1);opacity:1}}
-  .slot-shuffling .power-slot-btn{animation:slotJitter .16s linear infinite}
-  .slot-shuffling .slot-number{filter:blur(.7px)}
-  @keyframes slotJitter{0%,100%{transform:translateX(-2px) scaleY(1.03)}50%{transform:translateX(2px) scaleY(.95)}}
   .slot-final .power-slot-btn{animation:slotFinal .42s cubic-bezier(.18,.9,.28,1) both}
   @keyframes slotFinal{0%{transform:scale(.82) translateY(6px);opacity:.2}60%{transform:scale(1.08) translateY(-3px);opacity:1}100%{transform:scale(1) translateY(0);opacity:1}}
-  @media(prefers-reduced-motion:reduce){.slot-reel-track.running{animation-duration:.6s}.slot-shuffling .power-slot-btn{animation:none}}
+  /* Full-screen play */
+  #fullscreenBtn{white-space:nowrap}
+  html:fullscreen,html:-webkit-full-screen,body:fullscreen{background:#07182b!important;overflow:hidden!important}
+  #arenaScreen:fullscreen,#arenaScreen:-webkit-full-screen{padding:6px!important;gap:6px!important}
+  @media(max-width:760px){#fullscreenBtn{font-size:9px!important;padding:2px 4px!important}}
+  @media(prefers-reduced-motion:reduce){.slot-final .power-slot-btn{animation-duration:.2s}}
   /* Narrow layouts stack the arsenal chips over the top of the arena; keep the
      round/status pill out of their way. */
   @media(max-width:1000px){#arenaStatusPill{top:auto!important;bottom:10px!important;font-size:9px!important;padding:4px 10px!important}}
@@ -277,12 +313,18 @@
   /* Bottom slots are real cards: the whole emblem is visible inside the tile
      (never cropped to a strip), sized square like the top arsenal art, and the
      tile keeps one fixed height so picking a card cannot squeeze the arena. */
-  .power-slot-btn{height:70px!important;min-height:70px!important}
-  .power-slot-btn.has-art{position:relative;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:2px!important;padding:3px 3px 2px!important;overflow:hidden;height:70px!important;min-height:70px!important;background:linear-gradient(180deg,#fff,#e4f1fd)!important;border:1px solid color-mix(in srgb,var(--selected-power) 55%,#8fb8d6)!important;box-shadow:0 3px 9px rgba(9,38,64,.18),inset 0 1px rgba(255,255,255,.9)!important;color:#0e2f4c!important}
-  #p1SlotsContainer.reeling,#p2SlotsContainer.reeling{min-height:70px}
-  .power-slot-btn .slot-art{width:54px;height:54px;min-height:0!important;flex:0 0 auto;object-fit:contain;border-radius:7px;display:block;background:radial-gradient(circle at 50% 38%,color-mix(in srgb,var(--selected-power) 60%,#07182b),#04101d)}
-  .power-slot-btn .slot-art.is-icon{display:grid;place-items:center;font-size:22px;color:#fff}
-  .power-slot-btn .slot-art-name{position:static;left:auto;right:auto;bottom:auto;width:100%;font:900 7.4px/1 Orbitron,Inter,sans-serif;letter-spacing:.03em;color:#0e2f4c;text-shadow:none;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .power-slot-btn{height:74px!important;min-height:74px!important}
+  #p1SlotsContainer,#p2SlotsContainer{height:74px;align-items:stretch}
+  #p1SlotsContainer.reeling,#p2SlotsContainer.reeling{height:74px}
+  /* One card design for the 1–5 tiles AND the shuffle strip, built like the top
+     arsenal cards: art on top, name band under it, so the same power always
+     reads the same way. Slightly rectangular, sized to the fixed slot height. */
+  .power-slot-btn.has-art,.slot-reel-card{position:relative;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:2px!important;padding:3px!important;overflow:hidden;border-radius:11px;background:linear-gradient(180deg,#fff,#e4f1fd);border:1px solid color-mix(in srgb,var(--selected-power) 55%,#8fb8d6);box-shadow:0 3px 9px rgba(9,38,64,.18),inset 0 1px rgba(255,255,255,.9);color:#0e2f4c}
+  .power-slot-btn.has-art{height:74px!important;min-height:74px!important;box-sizing:border-box!important}
+  .power-slot-btn .slot-art,.slot-reel-card .slot-art{width:44px;height:50px;min-height:0!important;flex:0 0 auto;object-fit:cover;border-radius:7px;display:block;background:radial-gradient(circle at 50% 38%,color-mix(in srgb,var(--selected-power) 60%,#07182b),#04101d)}
+  .power-slot-btn .slot-art.is-icon,.slot-reel-card .slot-art.is-icon{display:grid;place-items:center;font-size:20px;color:#fff}
+  .power-slot-btn .slot-art-name,.slot-reel-card .slot-art-name{position:static;left:auto;right:auto;bottom:auto;width:100%;font:900 7.4px/1 Orbitron,Inter,sans-serif;letter-spacing:.03em;color:#0e2f4c;text-shadow:none;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .power-slot-btn .slot-index,.slot-reel-card .slot-index{position:absolute;top:2px;left:4px;z-index:2;font:900 8px/1 Orbitron,Inter,sans-serif;color:#2b6a95;background:rgba(255,255,255,.84);border-radius:4px;padding:1px 3px;box-shadow:0 1px 2px rgba(9,38,64,.18)}
   .power-slot-btn.has-art.selected-power{box-shadow:0 0 20px var(--selected-power),inset 0 0 0 2px #fff!important}
   /* ---------- Character picker ---------- */
   .char-pick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
@@ -292,19 +334,17 @@
   .char-btn:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(22,72,110,.16)}
   .char-btn.active{color:#fff;border-color:#0d7fd0;background:linear-gradient(150deg,#1a9ae8,#1157b6);box-shadow:0 6px 16px rgba(17,87,182,.35)}
   .char-btn.active .char-tag{color:rgba(255,255,255,.88)}
-  /* ---------- Reel now shows the real power cards ---------- */
-  /* Reel cards stay inside the tile height, so shuffling is compact. */
-  .slot-reel-card{position:relative;padding:2px}
-  .slot-reel-card img,.slot-reel-card .reel-icon{width:100%;height:100%;object-fit:contain;border-radius:6px;display:block;background:#06182a}
-  .slot-reel-card .reel-icon{display:grid;place-items:center;font-size:16px;background:radial-gradient(circle at 50% 38%,#2b6fa6,#0a2438)}
-  .slot-reel-card b{position:absolute;left:3px;right:3px;bottom:4px;font:900 6px/1 Orbitron,Inter,sans-serif;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 6px rgba(0,0,0,.6)}
+  /* ---------- Reel shows the real power cards ---------- */
+  .slot-reel-card{height:100%}
   @media(max-width:1000px){
     .power-card{width:52px}.power-card .pc-name{font-size:6.5px}.power-card .pc-art.is-icon{font-size:18px}
     .power-inventory{max-width:min(56%,430px)!important}
-    .power-slot-btn,.power-slot-btn.has-art{height:56px!important;min-height:56px!important}
-    #p1SlotsContainer.reeling,#p2SlotsContainer.reeling{min-height:56px}
-    .power-slot-btn .slot-art{width:38px;height:38px}
-    .power-slot-btn .slot-art-name{font-size:6.4px}
+    .power-slot-btn,.power-slot-btn.has-art{height:58px!important;min-height:58px!important}
+    #p1SlotsContainer,#p2SlotsContainer,#p1SlotsContainer.reeling,#p2SlotsContainer.reeling{height:58px}
+    .power-slot-btn .slot-art,.slot-reel-card .slot-art{width:34px;height:38px}
+    .power-slot-btn .slot-art-name,.slot-reel-card .slot-art-name{font-size:6.4px}
+    .slot-reel-track{gap:4px}
+    .slot-reel-card{flex:0 0 calc((100% - 16px)/5)}
     .char-btn{font-size:8px;padding:4px 3px}
   }
 </style>
@@ -445,6 +485,8 @@
   <!-- SCREEN 3: 1-SCREEN BATTLE ARENA                                       -->
   <!-- ===================================================================== -->
   <section id="arenaScreen" class="hidden w-full h-full flex-col justify-between p-2 sm:p-3 overflow-hidden bg-slate-100">
+    <div id="arenaVignette" aria-hidden="true"></div>
+    <div id="arenaFlash" aria-hidden="true"></div>
     <!-- Top Power Lines & Round Bar -->
     <header class="w-full max-w-7xl mx-auto grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4 px-2.5 py-1.5 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
       <!-- Player 1 Power Line (0 - 100%) -->
@@ -462,9 +504,12 @@
       <div class="flex flex-col items-center justify-center px-2">
         <span class="text-[9px] font-extrabold tracking-widest text-slate-400 uppercase">ROUND</span>
         <span id="hudRoundNum" class="font-display text-base sm:text-lg font-black text-slate-900 leading-none">01</span>
-        <button id="exitArenaBtn" type="button" class="mt-1 text-[10px] font-bold text-slate-500 hover:text-slate-900 underline cursor-pointer">
-          EXIT
-        </button>
+        <div class="mt-1 flex items-center gap-1.5">
+          <button id="fullscreenBtn" type="button" class="text-[10px] font-black tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 border border-sky-300 rounded px-1.5 py-0.5 cursor-pointer" title="Play in full screen">&#9974; FULLSCREEN</button>
+          <button id="exitArenaBtn" type="button" class="text-[10px] font-bold text-slate-500 hover:text-slate-900 underline cursor-pointer">
+            EXIT
+          </button>
+        </div>
       </div>
 
       <!-- Player 2 Power Line (0 - 100%) -->
@@ -575,6 +620,35 @@
       playImpact() { if (this.playFile('impact')) return; this.playClash(); }
       playReel() { this.playFile('reel'); }
       playShuffle() { this.playFile('shuffle'); }
+      // Slot-reel ratchet: one short click; the caller stretches the spacing as the
+      // strip brakes, so the reel is audible while it slows down.
+      playReelTick(pitch = 1200) {
+        this.ensure();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(Math.max(280, pitch), now);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.035);
+        osc.connect(gain); gain.connect(this.out());
+        osc.start(now); osc.stop(now + 0.04);
+      }
+      playReelStop() {
+        this.ensure();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(940, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        osc.connect(gain); gain.connect(this.out());
+        osc.start(now); osc.stop(now + 0.17);
+      }
       ensure() {
         if (!this.ctx) {
           const AC = window.AudioContext || window.webkitAudioContext;
@@ -1153,6 +1227,7 @@
     const backToPosterBtn = document.getElementById('backToPosterBtn');
     const enterArenaBtn = document.getElementById('enterArenaBtn');
     const exitArenaBtn = document.getElementById('exitArenaBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
     const attackBtn = document.getElementById('attackBtn');
 const p1NameInput = document.getElementById('p1NameInput');
     const p2NameInput = document.getElementById('p2NameInput');
@@ -1169,6 +1244,8 @@ const p1NameInput = document.getElementById('p1NameInput');
     const hudP2PowerBar = document.getElementById('hudP2PowerBar');
     const hudRoundNum = document.getElementById('hudRoundNum');
     const arenaStatusPill = document.getElementById('arenaStatusPill');
+    const arenaVignette = document.getElementById('arenaVignette');
+    const arenaFlash = document.getElementById('arenaFlash');
 
     const p1SlotsContainer = document.getElementById('p1SlotsContainer');
     const p2SlotsContainer = document.getElementById('p2SlotsContainer');
@@ -1240,7 +1317,19 @@ const p1NameInput = document.getElementById('p1NameInput');
 
     // How long a knocked-down fighter owns the screen before the next round.
     // Knockdown + lying + standing back up all happen inside this window.
-    const FALL_DURATION = 2.6;
+    // Cinematic clash timings. Short and punchy: the powers fire almost at once,
+    // collide fast and the loser is on the floor well inside two seconds.
+    // Cinematic clash timings: a long, tense gather, a short flight, a real
+    // struggle at the centre, then the breakthrough lands almost instantly.
+    const CHARGE_TIME = 1.7;
+    const TRAVEL_TIME = 0.85;
+    const IMPACT_HOLD = 0.55;   // the moment the two forces slam together
+    const CLASH_TIME = 2.2;     // hold + power struggle at the centre
+    const SURGE_TIME = 0.34;
+    const DRAW_TIME = 0.95;
+    const AFTERMATH_TIME = 3.25;
+    const FALL_DURATION = 2.9;
+    const FALL_TIMINGS = { stagger: .45, riseStart: 2.0, riseEnd: 2.72 };
 
     let vfxParticles = [];
     let shockRings = [];
@@ -1348,6 +1437,46 @@ const p1NameInput = document.getElementById('p1NameInput');
       });
     }
 
+    // The top arsenal shows the five cards while the players pick, and only shows
+    // the released card once the clash starts — then the whole box flushes with
+    // that power's colour when the two forces meet in the centre.
+    function setArsenalClashMode(pw1, pw2) {
+      [[1, pw1], [2, pw2]].forEach(([n, pw]) => {
+        const box = document.getElementById(`p${n}PowerInventory`);
+        const root = box && box.querySelector('.power-list');
+        if (!box || !root || !pw) return;
+        root.innerHTML = `<span class="power-card released-card rel-${pw.id}" style="--pc:${pw.color}" title="${pw.name}">${powerArtMarkup(pw, 'pc-art')}<span class="pc-name">${pw.name}</span></span>`;
+        box.style.setProperty('--rel-color', pw.color);
+        box.classList.add('arsenal-clash');
+        box.classList.remove('arsenal-clash-hot', 'arsenal-won', 'arsenal-lost');
+      });
+    }
+    function heatArsenalClashMode() {
+      [1, 2].forEach((n) => document.getElementById(`p${n}PowerInventory`)?.classList.add('arsenal-clash-hot'));
+    }
+    function clearArsenalClashMode() {
+      [1, 2].forEach((n) => {
+        const box = document.getElementById(`p${n}PowerInventory`);
+        if (!box) return;
+        box.classList.remove('arsenal-clash', 'arsenal-clash-hot', 'arsenal-won', 'arsenal-lost');
+        box.style.removeProperty('--rel-color');
+      });
+    }
+
+    // Cinematic grade and a single white pop when the breakthrough lands.
+    function setCine(on) {
+      if (arenaVignette) arenaVignette.classList.toggle('on', !!on);
+    }
+    function flashScreen(strength = 1) {
+      if (!arenaFlash) return;
+      arenaFlash.style.opacity = String(Math.min(.86, .42 + strength * .32));
+      arenaFlash.classList.add('hit');
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        arenaFlash.classList.remove('hit');
+        arenaFlash.style.opacity = '0';
+      }));
+    }
+
     function startNewRound(resetPowers = false) {
       if (resetPowers) {
         game.p1.power = 100;
@@ -1358,8 +1487,11 @@ const p1NameInput = document.getElementById('p1NameInput');
       }
 
       game.phase = 'PICKING';
+      game.clash.phaseAt = performance.now();
       game.p1.slots = rollFivePowers(1);
       game.p2.slots = rollFivePowers(2);
+      clearArsenalClashMode();
+      setCine(false);
       renderPowerInventories();
       game.p1.pickedIndex = null;
       game.p2.pickedIndex = null;
@@ -1422,13 +1554,16 @@ const p1NameInput = document.getElementById('p1NameInput');
         const p=playerNum===1?game.p1:game.p2;
         const container=playerNum===1?p1SlotsContainer:p2SlotsContainer;
         container.classList.toggle('power-active',p.pickedPower!==null);
-        if(p.pickedPower) container.style.setProperty('--selected-power',p.pickedPower.color);
-        else container.style.removeProperty('--selected-power');
+        // The locked tile keeps a neutral accent so the power's colour never leaks.
+        container.style.setProperty('--selected-power','#2f7fc0');
         for(let i=0;i<5;i++){
           const pw=p.slots[i], selected=p.pickedIndex===i;
           const btn=document.createElement('button');btn.type='button';btn.disabled=!canPick;
           btn.className='power-slot-btn py-2 px-1 rounded-xl border font-display font-black text-xs flex flex-col items-center justify-center cursor-pointer '+(selected?'selected-power':'');
-          if(selected){btn.classList.add('has-art');btn.style.setProperty('--selected-power',pw.color);btn.innerHTML=`${powerArtMarkup(pw,'slot-art')}<span class="slot-art-name">${pw.name}</span>`;}
+          // The resting tiles stay hidden — just the slot number — so the powers are
+          // only ever seen while the shuffle strip is spinning. A picked slot shows
+          // a mystery card, never its power.
+          if(selected){btn.classList.add('has-art','mystery-slot');btn.innerHTML=`<span class="slot-mystery">?</span><span class="slot-art-name">LOCKED ${i+1}</span>`;}
           else btn.innerHTML=`<span class="slot-number">${i+1}</span><span class="text-[8px] tracking-widest opacity-65 mt-1">POWER</span>`;
           btn.addEventListener('click',()=>handleSlotPick(playerNum,i));container.appendChild(btn);
         }
@@ -1437,89 +1572,127 @@ const p1NameInput = document.getElementById('p1NameInput');
       p2LockBadge.textContent=game.p2.pickedIndex!==null?'SELECTED':'OPEN';
     }
 
-    // Round-end slot replay: the 1-5 cards run right→left like a news ticker inside
-    // each player's own section at full speed, stop on a number, then instantly
-    // shuffle before settling back to 1-5 ready to pick.
+    // Round-end power reel: a real three-symbol slot window per row. The strip
+    // tears past blurred, brakes hard, then crawls the last card under the centre
+    // frame while the window takes on the winning colour (the hint), snaps home
+    // on a random power and is wiped away a heartbeat later.
+    const REEL_SPIN_MS = 2650;
+    function reelCard(pw, index) {
+      const card = document.createElement('div');
+      card.className = 'slot-reel-card';
+      card.style.setProperty('--selected-power', pw.color);
+      card.innerHTML = `<span class="slot-index">${index + 1}</span>${powerArtMarkup(pw, 'slot-art')}<span class="slot-art-name">${pw.name}</span>`;
+      return card;
+    }
     function playSlotReelSequence() {
       const stamp = ++game.slotSequence;
       const rows = [p1SlotsContainer, p2SlotsContainer];
+      const reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      const spinMs = reduced ? 900 : REEL_SPIN_MS;
+      const blurOn = !reduced && QUALITY.tier === 0;
       game.slotsLocked = true;
       renderSlotButtons();
       setStatusPill('SHUFFLING POWER SLOTS', true);
+      sfx.playReel();
+
       rows.forEach((el, rowIndex) => {
         el.querySelector('.slot-reel')?.remove();
-        el.classList.remove('slot-settle', 'slot-shuffling', 'slot-final');
+        el.classList.remove('slot-settle', 'slot-final');
         const p = rowIndex === 0 ? game.p1 : game.p2;
-        const pows = (p.slots.length ? p.slots : characterPowers(rowIndex + 1));
+        // A real shuffle: the five powers are reordered for this round, and the
+        // strip is five cards wide, so every power stays properly visible as it spins.
+        const pows = (p.slots.length ? p.slots : characterPowers(rowIndex + 1)).slice();
+        for (let i = pows.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = pows[i]; pows[i] = pows[j]; pows[j] = tmp;
+        }
+        p.slots = pows.slice();
         const reel = document.createElement('div');
         reel.className = 'slot-reel';
         const track = document.createElement('div');
-        track.className = 'slot-reel-track';
-        for (let rep = 0; rep < 2; rep++) {
-          pows.forEach((pw) => {
-            const card = document.createElement('div');
-            card.className = 'slot-reel-card';
-            card.style.setProperty('--pc', pw.color);
-            card.innerHTML = `${powerArtMarkup(pw,'reel-art')}<b>${pw.name}</b>`;
-            track.appendChild(card);
-          });
-        }
+        track.className = 'slot-reel-track' + (blurOn ? ' spin-blur' : '');
+        const reps = 6, lead = 1;
+        for (let i = 0; i < lead; i++) pows.forEach((pw, k) => track.appendChild(reelCard(pw, k)));
+        for (let rep = 0; rep < reps; rep++) pows.forEach((pw, k) => track.appendChild(reelCard(pw, k)));
         reel.appendChild(track);
         el.appendChild(reel);
         el.classList.add('reeling');
-        requestAnimationFrame(() => track.classList.add('running'));
-      });
-      sfx.playReel();
 
-      const alive = () => stamp === game.slotSequence;
+        const accent = (pows[2] || pows[0] || {}).color || '#47b6ff';
+        reel.style.setProperty('--rl', accent);
+        reel.style.setProperty('--pc', accent);
+
+        // Still lands on a whole set of five, so the strip always stops perfectly
+        // aligned with the five tiles underneath — never half a card.
+        const cards = track.children;
+        const step = cards.length > 1 ? Math.max(1, cards[1].offsetLeft - cards[0].offsetLeft) : (el.clientWidth || 300) / 5;
+        const dist = Math.max(step, (reps - 1) * pows.length * step);
+
+        if (track.animate) {
+          const anim = track.animate([
+            { transform: 'translate3d(0,0,0)', offset: 0, easing: 'cubic-bezier(.08,.5,.28,1)' },
+            { transform: `translate3d(${-dist * .58}px,0,0)`, offset: .46, easing: 'cubic-bezier(.22,.06,.42,1)' },
+            { transform: `translate3d(${-dist * .9}px,0,0)`, offset: .76, easing: 'linear' },
+            { transform: `translate3d(${-dist * .972}px,0,0)`, offset: .91, easing: 'linear' },
+            { transform: `translate3d(${-dist}px,0,0)`, offset: 1 }
+          ], { duration: spinMs, fill: 'forwards' });
+          // Blur only survives the flat-out part, so the slow roll is readable.
+          window.setTimeout(() => {
+            if (stamp !== game.slotSequence) return;
+            track.classList.remove('spin-blur');
+            reel.classList.add('hinting');
+          }, Math.round(spinMs * .5));
+          anim.finished.then(() => {
+            if (stamp !== game.slotSequence) return;
+            el.classList.remove('reeling');
+            reel.classList.remove('hinting');
+            reel.classList.add('reel-landed');
+          }).catch(() => {});
+        } else {
+          track.style.transform = `translate3d(${-dist}px,0,0)`;
+          reel.classList.add('reel-landed');
+          el.classList.remove('reeling');
+        }
+      });
+
+      // Ratchet ticks start frantic and stretch out as the reel brakes.
+      let ticking = true;
+      const t0 = performance.now();
+      const tick = () => {
+        if (!ticking || stamp !== game.slotSequence) return;
+        const e = performance.now() - t0;
+        if (e > spinMs) return;
+        const k = e / spinMs;
+        sfx.playReelTick(1520 - k * 980);
+        window.setTimeout(tick, 26 + Math.pow(k, 2.4) * 640);
+      };
+      window.setTimeout(tick, 40);
 
       window.setTimeout(() => {
-        if (!alive()) return;
-        // Reel brakes on a number and holds it long enough to read.
-        rows.forEach((el) => {
-          el.querySelector('.slot-reel')?.remove();
-          el.classList.remove('reeling');
-          el.classList.add('slot-settle');
-        });
+        if (stamp !== game.slotSequence) return;
+        ticking = false;
+        sfx.playReelStop();
+        // The landed strip holds for a heartbeat, then vanishes.
+        rows.forEach((el) => el.querySelector('.slot-reel')?.classList.add('out'));
         window.setTimeout(() => {
-          if (!alive()) return;
-          rows.forEach((el) => { el.classList.remove('slot-settle'); el.classList.add('slot-shuffling'); });
-          sfx.playShuffle();
-          const spin = window.setInterval(() => {
-            if (!alive()) { window.clearInterval(spin); return; }
-            rows.forEach((el, rowIndex) => {
-              const pows = (rowIndex === 0 ? game.p1 : game.p2).slots;
-              if (!pows.length) return;
-              [...el.children].forEach((btn) => {
-                const pw = pows[Math.floor(Math.random() * pows.length)];
-                btn.classList.add('has-art');
-                btn.style.setProperty('--selected-power', pw.color);
-                btn.innerHTML = `${powerArtMarkup(pw,'slot-art')}<span class="slot-art-name">${pw.name}</span>`;
-              });
-            });
-          }, 55);
+          if (stamp !== game.slotSequence) return;
+          rows.forEach((el) => el.querySelector('.slot-reel')?.remove());
+          game.slotsLocked = false;
+          renderSlotButtons();
+          rows.forEach((el) => {
+            [...el.children].forEach((btn, i) => { btn.style.animationDelay = `${i * 35}ms`; });
+            el.classList.add('slot-final');
+          });
           window.setTimeout(() => {
-            window.clearInterval(spin);
-            if (!alive()) return;
-            rows.forEach((el) => el.classList.remove('slot-shuffling'));
-            game.slotsLocked = false;
-            renderSlotButtons();
             rows.forEach((el) => {
-              [...el.children].forEach((btn, i) => { btn.style.animationDelay = `${i * 45}ms`; });
-              el.classList.add('slot-final');
+              el.classList.remove('slot-final');
+              [...el.children].forEach((btn) => { btn.style.animationDelay = ''; });
             });
-            window.setTimeout(() => {
-              rows.forEach((el) => {
-                el.classList.remove('slot-final');
-                [...el.children].forEach((btn) => { btn.style.animationDelay = ''; });
-              });
-            }, 520);
-            sfx.playSelect(640);
-            updateAttackButtonState();
-            setStatusPill(`ROUND ${String(game.round).padStart(2, '0')} — PICK 1–5`, true);
-          }, 640);
-        }, 420);
-      }, 1220);
+          }, 460);
+          updateAttackButtonState();
+          setStatusPill(`ROUND ${String(game.round).padStart(2, '0')} — PICK 1–5`, true);
+        }, 150);
+      }, spinMs + 500);
     }
 
     function handleSlotPick(playerNum, slotIndex) {
@@ -1563,7 +1736,7 @@ const p1NameInput = document.getElementById('p1NameInput');
       attackBtn.disabled = true;
       attackBtn.classList.remove('attack-ready-pulse');
 
-      game.phase = 'CHARGING';
+      enterPhase('CHARGING');
       game.p1.anim = 'cast';
       game.p2.anim = 'cast';
       game.clash.timer = 0;
@@ -1582,10 +1755,13 @@ const p1NameInput = document.getElementById('p1NameInput');
 
       sfx.playAttack();
       // Rising power gather under the whole charge, plus a battle cry from each side.
-      sfx.playCharge(1.85);
+      sfx.playCharge(CHARGE_TIME);
       sfx.championCue(game.p1.characterId);
-      window.setTimeout(() => sfx.championCue(game.p2.characterId), 640);
-      setStatusPill(`${pw1.name}  VS  ${pw2.name} — CHARGING`, true);
+      window.setTimeout(() => sfx.championCue(game.p2.characterId), 300);
+      // Nothing is revealed yet: the arsenal keeps all five cards through the
+      // charge so the clash itself is the moment the powers are named.
+      setCine(true);
+      setStatusPill('POWERS LOCKED — CHARGING...', true);
     }
 
     // =========================================================================
@@ -1598,7 +1774,12 @@ const p1NameInput = document.getElementById('p1NameInput');
       const shakeOffset = hurtTimer > 0 ? Math.sin(time * 55) * 6 : 0;
 
       ctx.translate(cx + recoilX + shakeOffset, groundY);
-      const fallAmount = fallTimer > 0 ? Math.sin(Math.min(1, fallTimer / 1.35) * Math.PI / 2) : 0;
+      // fallTimer counts DOWN, so the fall has to be driven by the elapsed part of
+      // it — otherwise the body snaps straight into a full lean on the hit frame.
+      const fallElapsed = fallTimer > 0 ? Math.max(0, FALL_DURATION - fallTimer) : 0;
+      const fallProgress = fallTimer > 0 ? Math.min(1, fallElapsed / 0.55) : 0;
+      const getUp = fallTimer > 0 ? Math.max(0, Math.min(1, (fallElapsed - FALL_TIMINGS.riseStart) / Math.max(.01, FALL_TIMINGS.riseEnd - FALL_TIMINGS.riseStart))) : 0;
+      const fallAmount = Math.sin(fallProgress * Math.PI / 2) * (1 - getUp);
       // A hit knocks the complete body sideways; the cape and limbs follow the fall.
       ctx.rotate(-facing * fallAmount * 1.12);
       ctx.translate(0, fallAmount * 10);
@@ -2134,8 +2315,9 @@ const p1NameInput = document.getElementById('p1NameInput');
       [1, .72, .46].forEach((factor,index)=>shockRings.push({
         x,y,radius:8+index*12,maxRadius:150*factor,color:index===1?'#ffffff':c,alpha:.98-index*.12
       }));
-      for(let i=0;i<58;i++){
-        const angle=(Math.PI*2*i/58)+(Math.random()-.5)*.16;
+      const count = QUALITY.tier === 0 ? 46 : 24;
+      for(let i=0;i<count;i++){
+        const angle=(Math.PI*2*i/count)+(Math.random()-.5)*.16;
         const speed=2.5+Math.random()*9;
         vfxParticles.push({
           x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,
@@ -2176,14 +2358,21 @@ const p1NameInput = document.getElementById('p1NameInput');
           vfxParticles.splice(i, 1);
           continue;
         }
+        // Cheap additive glow: soft halo plus solid core. shadowBlur per particle
+        // was the single heaviest thing in the clash and is gone.
         ctx.save();
-        ctx.globalAlpha = Math.max(0, pt.life);
+        ctx.globalCompositeOperation = 'lighter';
         ctx.fillStyle = pt.color;
-        ctx.shadowColor = pt.color; ctx.shadowBlur = 12;
+        if (QUALITY.tier === 0) {
+          ctx.globalAlpha = Math.max(0, pt.life) * .22;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, pt.radius * 2.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = Math.max(0, Math.min(1, pt.life * 1.15));
         ctx.beginPath();
-        ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+        ctx.arc(pt.x, pt.y, pt.radius * .8, 0, Math.PI * 2);
         ctx.fill();
-        ctx.shadowBlur = 0;
         ctx.restore();
       }
     }
@@ -2266,7 +2455,7 @@ const p1NameInput = document.getElementById('p1NameInput');
         }
         // Confetti-style power bursts keep raining down during the champion lap.
         game.celebrationTimer = (game.celebrationTimer || 0) + dt;
-        if (game.celebrationTimer >= .72) {
+        if (game.celebrationTimer >= (QUALITY.tier >= 1 ? 1.4 : .72)) {
           game.celebrationTimer = 0;
           spawnImpactBurst(
             w * (.14 + Math.random() * .72),
@@ -2282,20 +2471,21 @@ const p1NameInput = document.getElementById('p1NameInput');
       game.p1.recoilX *= 0.86;
       game.p2.recoilX *= 0.86;
 
+      const nowMs = performance.now();
+      if (game.clash.phaseAt == null) game.clash.phaseAt = nowMs;
+
       if (game.phase === 'CHARGING') {
-        game.clash.timer += dt;
+        game.clash.timer = (nowMs - game.clash.phaseAt) / 1000;
         const pw1 = game.p1.pickedPower, pw2 = game.p2.pickedPower;
         if (!pw1 || !pw2) {
           // A round reset mid-sequence leaves nothing to launch; return safely.
-          game.phase = 'PICKING';
-          game.clash.timer = 0;
+          enterPhase('PICKING');
           renderSlotButtons();
           updateAttackButtonState();
           return;
         }
-        if (game.clash.timer >= 1.85) {
-          game.phase = 'TRAVEL_TO_CENTER';
-          game.clash.timer = 0;
+        if (game.clash.timer >= CHARGE_TIME) {
+          enterPhase('TRAVEL_TO_CENTER');
           sfx.stopCharge();
           sfx.playLaunch();
           sfx.playBeam(1);
@@ -2304,57 +2494,79 @@ const p1NameInput = document.getElementById('p1NameInput');
           sfx.playPower(pw1.id);
           const secondPowerId = pw2.id;
           window.setTimeout(() => sfx.playPower(secondPowerId), 560);
-          setStatusPill(`${pw1.name}  VS  ${pw2.name}`, true);
+          setStatusPill('POWERS RELEASED!', true);
         }
       } else if (game.phase === 'TRAVEL_TO_CENTER') {
-        game.clash.timer += dt;
-        const t = Math.min(1, game.clash.timer / 1.28);
+        game.clash.timer = (nowMs - game.clash.phaseAt) / 1000;
+        const t = Math.min(1, game.clash.timer / TRAVEL_TIME);
         const eased = 1 - Math.pow(1 - t, 2.2);
         game.clash.p1Reach = eased;
         game.clash.p2Reach = eased;
 
         if (t >= 1) {
-          game.phase = 'CENTER_CLASH';
-          game.clash.timer = 0;
+          enterPhase('CENTER_CLASH');
           game.clash.p1Reach = 1;
           game.clash.p2Reach = 1;
-          game.shake = 12;
+          game.shake = 16;
           sfx.playClash();
+          // The powers hit first. Only now does each top box reveal which power it
+          // was, and a beat later the whole box floods with that power's colour.
+          setArsenalClashMode(game.p1.pickedPower, game.p2.pickedPower);
+          window.setTimeout(() => {
+            if (game.phase === 'CENTER_CLASH' || game.phase === 'SURGE_HIT') heatArsenalClashMode();
+          }, 320);
+          setStatusPill('CLASH — POWER STRUGGLE', true);
           const mid = getFighterScreenAnchors(w, h).mid;
           spawnImpactBurst(mid.x, mid.y, game.p1.pickedPower);
         }
       } else if (game.phase === 'CENTER_CLASH') {
-        game.clash.timer += dt;
-        game.shake = Math.max(game.shake, 4);
+        game.clash.timer = (nowMs - game.clash.phaseAt) / 1000;
+        // Impact hold: the two forces slam together and hang there for a beat, so
+        // the hit lands before any shoving starts. Then a long, readable struggle.
+        const tClash = game.clash.timer;
+        const inHold = tClash < IMPACT_HOLD;
+        const tS = Math.min(1, Math.max(0, tClash - IMPACT_HOLD) / Math.max(.01, CLASH_TIME - IMPACT_HOLD));
+        const breakAt = .82;
+        const breakHold = 1 - Math.max(0, Math.min(1, (tS - breakAt) / Math.max(.01, 1 - breakAt)));
+        const struggle = inHold ? 0
+          : (Math.sin(tClash * 15) * .052 + Math.sin(tClash * 6.1) * .028) * breakHold * Math.min(1, tS * 4);
+        game.clash.p1Reach = 1 + struggle;
+        game.clash.p2Reach = 1 - struggle;
+        // The screen vibrates harder as the deadlock tightens.
+        game.shake = Math.max(game.shake, inHold ? 9 * (1 - tClash / IMPACT_HOLD) : 3 + 4 * tS);
 
-        if (game.clash.timer >= 1.45) {
-          game.clash.timer = 0;
+        if (game.clash.timer >= CLASH_TIME) {
           if (game.clash.winnerSide === 1 || game.clash.winnerSide === 2) {
-            game.phase = 'SURGE_HIT';
+            enterPhase('SURGE_HIT');
             game.clash.surgeProgress = 0;
             sfx.playLaunch();
           } else {
             // Same power: draw -> no winner, no damage
-            game.phase = 'DRAW_PULSE';
+            enterPhase('DRAW_PULSE');
             sfx.playDraw();
             setStatusPill('DRAW — NO WINNER', true);
           }
         }
       } else if (game.phase === 'SURGE_HIT') {
-        game.clash.surgeProgress = Math.min(1, game.clash.surgeProgress + dt / 0.92);
+        if (!game.clash.appliedDamage) {
+          game.clash.timer = (nowMs - game.clash.phaseAt) / 1000;
+          game.clash.surgeProgress = Math.min(1, game.clash.timer / SURGE_TIME);
+        }
         const s = game.clash.surgeProgress;
         // The winning force breaks through the clash while the losing force collapses.
+        // The winning beam pushes past the centre all the way into the rival.
         if (game.clash.winnerSide === 1) {
-          game.clash.p1Reach = 1 + s * 0.95;
-          game.clash.p2Reach = Math.max(0.12, 1 - s * 0.82);
+          game.clash.p1Reach = 1 + s * 1.04;
+          game.clash.p2Reach = Math.max(0.08, 1 - s * 0.9);
         } else {
-          game.clash.p2Reach = 1 + s * 0.95;
-          game.clash.p1Reach = Math.max(0.12, 1 - s * 0.82);
+          game.clash.p2Reach = 1 + s * 1.04;
+          game.clash.p1Reach = Math.max(0.08, 1 - s * 0.9);
         }
 
         if (s >= 1 && !game.clash.appliedDamage) {
           game.clash.appliedDamage = true;
-          game.shake = 22;
+          game.shake = 28;
+          flashScreen(1);
           const a=game.p1.pickedPower, b=game.p2.pickedPower;
           // The impact lands on the fighter who actually lost the clash.
           const rows=getFighterScreenAnchors(w,h);
@@ -2375,8 +2587,14 @@ const p1NameInput = document.getElementById('p1NameInput');
           if(damageToP1>0 || damageToP2>0){
             sfx.playImpact();
             // The losing fighter hits the floor, then pushes back up.
-            window.setTimeout(() => sfx.playFallThud(), 240);
-            window.setTimeout(() => sfx.playGetUp(), 2150);
+            window.setTimeout(() => sfx.playFallThud(), 120);
+            window.setTimeout(() => sfx.playGetUp(), Math.round(FALL_TIMINGS.riseStart * 1000));
+            // Dust kicks up at the exact moment the body slams the terrace.
+            window.setTimeout(() => {
+              const g = getFighterScreenAnchors(battleCanvas._cssW || w, battleCanvas._cssH || h);
+              const body = game.clash.winnerSide === 1 ? g.p2 : g.p1;
+              spawnImpactBurst(body.x, h * .9, { color: '#cbd5e1', core: '#f8fafc' });
+            }, Math.round((FALL_TIMINGS.stagger + .62) * 1000));
           }
           if (damageToP1 > 0 || damageToP2 > 0) {
             // The hit cry plays only when a fighter actually takes damage.
@@ -2387,17 +2605,29 @@ const p1NameInput = document.getElementById('p1NameInput');
           else if(outcomeKind==='mega-shield') setStatusPill('MEGAPOWER VS SHIELD — ZERO EFFECT',true);
           else if(outcomeKind==='mega') setStatusPill(`MEGAPOWER BREAKTHROUGH — PLAYER ${game.clash.winnerSide} WINS · ${clashDamage}% DAMAGE`,true);
           else setStatusPill(`CENTRE CLASH — PLAYER ${game.clash.winnerSide} WINS · ${clashDamage}% DAMAGE`,true);
+          // The released power stays on screen after the clash: the winner's card
+          // burns bright, the beaten one dims, until the next round reshuffles.
+          if (game.clash.winnerSide === 1 || game.clash.winnerSide === 2) {
+            [1, 2].forEach((n) => {
+              const box = document.getElementById(`p${n}PowerInventory`);
+              if (!box) return;
+              box.classList.toggle('arsenal-won', n === game.clash.winnerSide);
+              box.classList.toggle('arsenal-lost', n !== game.clash.winnerSide);
+            });
+          }
           updatePowerLinesHUD();
+          // Restart the clock for the aftermath beat.
+          game.clash.phaseAt = performance.now();
           game.clash.timer = 0;
         }
 
         if (game.clash.appliedDamage) {
-          game.clash.timer += dt;
+          game.clash.timer = (performance.now() - game.clash.phaseAt) / 1000;
           // The released powers collapse back into the hands after the breakthrough.
           const beamFade = Math.max(0, 1 - game.clash.timer / 0.42);
           game.clash.p1Reach = beamFade;
           game.clash.p2Reach = beamFade;
-          if (game.clash.timer >= 2.72) {
+          if (game.clash.timer >= AFTERMATH_TIME) {
             if (game.p1.power <= 0) {
               finishMatch(2);
             } else if (game.p2.power <= 0) {
@@ -2409,12 +2639,12 @@ const p1NameInput = document.getElementById('p1NameInput');
           }
         }
       } else if (game.phase === 'DRAW_PULSE') {
-        game.clash.timer += dt;
+        game.clash.timer = (nowMs - game.clash.phaseAt) / 1000;
         // Both released powers retract from the centre together.
-        const dp = Math.min(1, game.clash.timer / 1.15);
+        const dp = Math.min(1, game.clash.timer / DRAW_TIME);
         game.clash.p1Reach = Math.max(0.10, 1 - dp * 0.90);
         game.clash.p2Reach = Math.max(0.10, 1 - dp * 0.90);
-        if (game.clash.timer >= 1.15) {
+        if (game.clash.timer >= DRAW_TIME) {
           game.round += 1;
           startNewRound(false);
         }
@@ -2422,7 +2652,8 @@ const p1NameInput = document.getElementById('p1NameInput');
     }
 
     function finishMatch(winnerNum) {
-      game.phase = 'VICTORY';
+      enterPhase('VICTORY');
+      setCine(false);
       game.winner = winnerNum;
       // Keep the 3D layer in sync so exactly one fighter celebrates and one goes down.
       game.clash.winnerSide = winnerNum;
@@ -2444,7 +2675,7 @@ const p1NameInput = document.getElementById('p1NameInput');
         const bx = battleCanvas.width * (0.2 + burst * 0.2);
         const by = battleCanvas.height * (0.24 + (burst % 2) * 0.14);
         shockRings.push({ x: bx, y: by, radius: 8, maxRadius: 72, color: '#fbbf24', alpha: 1 });
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < (QUALITY.tier === 0 ? 20 : 10); i++) {
           const ang = (Math.PI * 2 * i) / 20;
           const spd = 2.2 + Math.random() * 5;
           vfxParticles.push({
@@ -2526,6 +2757,15 @@ const p1NameInput = document.getElementById('p1NameInput');
 
       ctx.save(); ctx.filter = 'none'; renderSkyTerraceArena(ctx, w, h); ctx.restore();
 
+      // Cinematic dusk while the powers are live: the terrace dims so the beams
+      // and the two fighters own the frame.
+      if (game.phase === 'CHARGING' || game.phase === 'TRAVEL_TO_CENTER' ||
+          game.phase === 'CENTER_CLASH' || game.phase === 'SURGE_HIT' || game.phase === 'DRAW_PULSE') {
+        const dusk = game.phase === 'CHARGING' ? Math.min(1, game.clash.timer / CHARGE_TIME) : 1;
+        ctx.fillStyle = `rgba(5,12,24,${(0.2 * dusk).toFixed(3)})`;
+        ctx.fillRect(-30, -30, w + 60, h + 60);
+      }
+
       const groundY = h * 0.88;
       const p1X = w * 0.175;
       const p2X = w * 0.825;
@@ -2537,7 +2777,8 @@ const p1NameInput = document.getElementById('p1NameInput');
         drawRealisticHero(ctx, p2X, groundY, scale, -1, game.p2.hero, game.p2.anim, game.time, game.p2.hurtTimer, game.p2.recoilX, game.p2.fallTimer);
       } else {
         window.gsh3dFrame = { phase: game.phase, timer: game.clash.timer, winnerSide: game.clash.winnerSide,
-          applied: game.clash.appliedDamage, fallMax: FALL_DURATION,
+          applied: game.clash.appliedDamage, fallMax: FALL_DURATION, surge: game.clash.surgeProgress,
+          durs: { charge: CHARGE_TIME, travel: TRAVEL_TIME, draw: DRAW_TIME }, fallTimings: FALL_TIMINGS,
           p1:{anim:game.p1.anim,hurt:game.p1.hurtTimer,fall:game.p1.fallTimer,recoil:game.p1.recoilX},
           p2:{anim:game.p2.anim,hurt:game.p2.hurtTimer,fall:game.p2.fallTimer,recoil:game.p2.recoilX} };
       }
@@ -2552,7 +2793,7 @@ const p1NameInput = document.getElementById('p1NameInput');
       if (powerPhase) {
         if (game.phase === 'CHARGING') {
           // Energy gathers at each raised fist before either power is released.
-          const charge = Math.max(0, Math.min(1, game.clash.timer / 1.75));
+          const charge = Math.max(0, Math.min(1, game.clash.timer / (CHARGE_TIME * .95)));
           if (pw1) drawChargeOrb(ctx, a1.x, a1.y, pw1, game.time, charge, 1);
           if (pw2) drawChargeOrb(ctx, a2.x, a2.y, pw2, game.time, charge, -1);
         } else {
@@ -2572,7 +2813,7 @@ const p1NameInput = document.getElementById('p1NameInput');
         const t = game.clash.timer;
         const decay = game.phase === 'CENTER_CLASH' ? 1
           : game.phase === 'SURGE_HIT' ? Math.max(.12, 1 - game.clash.surgeProgress * .95)
-          : Math.max(.12, 1 - t / 1.15);
+          : Math.max(.12, 1 - t / DRAW_TIME);
         const pulse = 1 + Math.sin(t * 23) * .13;
         const radius = (Math.max(34, Math.min(76, w * .048)) * pulse + Math.sin(t * 11) * 5) * decay;
         if (radius > 3) {
@@ -2611,15 +2852,46 @@ const p1NameInput = document.getElementById('p1NameInput');
     // =========================================================================
     // 11. RESPONSIVE CANVAS SIZING & MAIN LOOP
     // =========================================================================
-    // Every canvas gets a device-pixel-resolution backing store (up to 2×) while
-    // drawing stays in CSS pixels, so artwork is sharp on HD/4K screens.
+    // Cinematic phases run on the wall clock, not on accumulated frame time, so a
+    // slow device shows the same punchy timing as a fast one instead of stretching
+    // every clash out over several seconds.
+    function enterPhase(next) {
+      game.phase = next;
+      game.clash.timer = 0;
+      game.clash.phaseAt = performance.now();
+    }
+
+    // ---- Adaptive render quality ------------------------------------------
+    // Start sharp, then step the backing stores and particle budget down if the
+    // device cannot hold a smooth frame. It only ever steps down, so it cannot
+    // oscillate between two resolutions.
+    const QUALITY = { tier: 0, dpr: Math.min(window.devicePixelRatio || 1, 1.5), acc: 0, frames: 0 };
+    function applyQuality() {
+      QUALITY.dpr = QUALITY.tier === 0 ? Math.min(window.devicePixelRatio || 1, 1.5)
+                   : QUALITY.tier === 1 ? Math.min(window.devicePixelRatio || 1, 1.1)
+                   : 0.85;
+      if (typeof window.gshSetQuality === 'function') window.gshSetQuality(QUALITY.tier);
+      BG_CACHE.clear();
+      resizeAllCanvases();
+    }
+    function trackQuality(dt) {
+      if (QUALITY.tier >= 2) return;
+      QUALITY.acc += dt; QUALITY.frames += 1;
+      if (QUALITY.frames < 60) return;
+      const avg = QUALITY.acc / QUALITY.frames;
+      QUALITY.acc = 0; QUALITY.frames = 0;
+      if (avg > 0.023) { QUALITY.tier += 1; applyQuality(); }
+    }
+
+    // Every canvas gets a device-pixel-resolution backing store sized by the
+    // quality tier while drawing stays in CSS pixels.
     function resizeCanvasToParent(canvas) {
       const parent = canvas.parentElement;
       if (!parent) return;
       const rect = parent.getBoundingClientRect();
       const cssW = Math.max(1, Math.floor(rect.width));
       const cssH = Math.max(1, Math.floor(rect.height));
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = QUALITY.dpr;
       const targetW = Math.round(cssW * dpr);
       const targetH = Math.round(cssH * dpr);
       canvas._cssW = cssW; canvas._cssH = cssH; canvas._dpr = dpr;
@@ -2630,6 +2902,8 @@ const p1NameInput = document.getElementById('p1NameInput');
     }
 
     function beginCanvasFrame(canvas) {
+      // Skip any canvas whose screen is hidden: no layout, no drawing, no cost.
+      if (!canvas || !canvas.offsetWidth || !canvas.offsetHeight) return { ctx: null, w: 0, h: 0 };
       const dpr = canvas._dpr || 1;
       const ctx = canvas.getContext('2d');
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -2649,10 +2923,13 @@ const p1NameInput = document.getElementById('p1NameInput');
 
     let lastFrameTime = performance.now();
     function mainLoop(now) {
-      const dt = Math.min(0.033, (now - lastFrameTime) / 1000);
+      // Falls and recoils stay near real time down to ~10 fps; the cinematic
+      // phase clocks are wall-clock driven independently.
+      const dt = Math.min(0.1, (now - lastFrameTime) / 1000);
       lastFrameTime = now;
       if (document.hidden) { lastFrameTime = now; requestAnimationFrame(mainLoop); return; }
       game.time += dt;
+      trackQuality(dt);
 
       if (game.screen === 'POSTER') {
         renderPosterCanvas();
@@ -2686,9 +2963,44 @@ const p1NameInput = document.getElementById('p1NameInput');
     p1NameInput.addEventListener('input', syncNamesFromInputs);
     p2NameInput.addEventListener('input', syncNamesFromInputs);
 
+    // ---- Full screen play ---------------------------------------------------
+    // Entering the arena is a user gesture, so the browser lets the match open
+    // full screen right away; the header button toggles it at any time.
+    const isFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+    function refreshFullscreenLabel() {
+      if (!fullscreenBtn) return;
+      fullscreenBtn.innerHTML = isFullscreen() ? '&#10530; EXIT FULL' : '&#9974; FULLSCREEN';
+    }
+    function enterFullscreen() {
+      if (isFullscreen()) return;
+      const el = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (!req) return;
+      try {
+        const p = req.call(el);
+        if (p && p.catch) p.catch(() => {});
+      } catch (_) { /* full screen is optional */ }
+    }
+    function toggleFullscreen() {
+      if (isFullscreen()) {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        try { exit && exit.call(document); } catch (_) { /* ignore */ }
+      } else {
+        enterFullscreen();
+      }
+    }
+    if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
+    const onFullscreenChange = () => {
+      refreshFullscreenLabel();
+      requestAnimationFrame(() => { resizeAllCanvases(); if (window.gshRefresh3D) window.gshRefresh3D(); });
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+
     enterArenaBtn.addEventListener('click', () => {
       sfx.playLaunch();
       syncNamesFromInputs();
+      enterFullscreen();
       if (typeof window.gshRefresh3D === 'function') window.gshRefresh3D();
       showScreen('ARENA');
       startNewRound(true);
@@ -2696,6 +3008,10 @@ const p1NameInput = document.getElementById('p1NameInput');
 
     exitArenaBtn.addEventListener('click', () => {
       sfx.playSelect(440);
+      if (isFullscreen()) {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        try { exit && exit.call(document); } catch (_) { /* ignore */ }
+      }
       showScreen('SELECT');
     });
 
